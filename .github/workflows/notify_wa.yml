@@ -1,0 +1,26 @@
+name: Send WhatsApp Notification on Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Send WhatsApp Notification via Fonnte API
+        env:
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          WA_TARGET: ${{ secrets.WA_GROUP_TARGET }}
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          AUTHOR=$(git log -1 --pretty=format:"%an")
+
+          curl -X POST "https://api.fonnte.com/send" \
+          -H "Authorization: $FONNTE_TOKEN" \
+          -d "target=$WA_TARGET" \
+          -d "message=🚀 *[UPDATE PBL THRIFTLO]*%0A%0AProyek thriftLO baru saja di-push ke GitHub!%0A👤 *Author:* $AUTHOR%0A💬 *Commit:* $COMMIT_MSG%0A🔗 Cek repository: https://github.com/haanshuve/thriftLO"
