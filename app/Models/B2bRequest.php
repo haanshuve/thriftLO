@@ -16,7 +16,7 @@ class B2bRequest extends Model
         'status',
     ];
 
-    public function user()
+    public function user()  #avdvavbadkvhbv
     {
         return $this->belongsTo(User::class);
     }
