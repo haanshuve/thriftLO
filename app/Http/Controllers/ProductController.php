@@ -14,6 +14,16 @@ class ProductController extends Controller
     {
         $query = Product::with('user')->whereIn('status', ['Available', 'Booked']);
 
+        // Fitur Pencarian (Search) berdasarkan Judul atau Deskripsi Barang
+        if ($request->has('search') && !empty($request->search)) {
+            $keyword = $request->search;
+            $query->where(function($q) use ($keyword) {
+                $q->where('title', 'like', '%' . $keyword . '%')
+                  ->orWhere('description', 'like', '%' . $keyword . '%')
+                  ->orWhere('nama_barang', 'like', '%' . $keyword . '%'); // Mengantisipasi variasi nama kolom
+            });
+        }
+
         if ($request->has('mode') && $request->mode != 'all') {
             $query->where('mode_jual', $request->mode);
         }
@@ -39,11 +49,10 @@ class ProductController extends Controller
             'kategori'    => 'required|string',
             'harga'       => 'required|numeric',
             'grade'       => 'required|string',
-            'image'       => 'required|image|mimes:jpeg,png,jpg,webp|max:2048', // Validasi file gambar asli (Maks 2MB)
+            'image'       => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
             'deskripsi'   => 'nullable|string',
         ]);
 
-        // Simpan file gambar secara fisik ke folder storage/app/public/products
         $imagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('products', 'public');
@@ -56,8 +65,8 @@ class ProductController extends Controller
             'kategori'    => $request->kategori,
             'price'       => $request->harga,
             'grade'       => $request->grade,
-            'image_url'   => $imagePath, // Menyimpan path file storage
-            'image_path'  => $imagePath, // Menyimpan path file storage
+            'image_url'   => $imagePath,
+            'image_path'  => $imagePath,
             'video_proof' => $request->video_proof_url,
             'description' => $request->deskripsi,
             'status'      => 'Available',
@@ -69,7 +78,7 @@ class ProductController extends Controller
     public function bookProduct(Request $request, $id)
     {
         if (!Auth::check()) {
-            return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu untuk melakukan booking barang!');
+            return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu!');
         }
 
         $request->validate([
@@ -79,24 +88,25 @@ class ProductController extends Controller
 
         $product = Product::findOrFail($id);
 
-        if ($product->status !== 'Available') {
-            return redirect()->back()->with('error', 'Maaf, barang ini sudah di-booking oleh pembeli lain!');
+        if (strtolower($product->status) !== 'available') {
+            return redirect()->back()->with('error', 'Maaf, barang ini sudah di-booking!');
         }
 
         $qrToken = 'TL-' . strtoupper(Str::random(8));
 
+        // Menyimpan booking dengan struktur kolom database cod_location & cod_schedule
         Booking::create([
-            'product_id'    => $product->id,
-            'user_id'       => Auth::id(),
-            'qr_code_token' => $qrToken,
-            'lokasi_cod'    => $request->lokasi_cod,
-            'waktu_cod'     => $request->waktu_cod,
-            'status_cod'    => 'Pending',
+            'product_id'   => $product->id,
+            'user_id'      => Auth::id(),
+            'qr_token'     => $qrToken,
+            'cod_location' => $request->lokasi_cod,
+            'cod_schedule' => $request->waktu_cod,
+            'status_cod'   => 'Pending',
         ]);
 
         $product->update(['status' => 'Booked']);
 
-        return redirect()->route('bookings.index')->with('success', 'Barang berhasil di-booking! Token QR COD kamu: ' . $qrToken);
+        return redirect()->route('bookings.index')->with('success', 'Barang berhasil di-booking! Token QR COD: ' . $qrToken);
     }
 
     public function sellerDashboard()
@@ -118,7 +128,7 @@ class ProductController extends Controller
         ]);
 
         $cleanToken = strtoupper(trim($request->qr_code_token));
-        $booking = Booking::where('qr_code_token', $cleanToken)->first();
+        $booking = Booking::where('qr_token', $cleanToken)->first();
 
         if (!$booking) {
             return redirect()->back()->with('error', 'Token QR tidak ditemukan atau tidak valid!');
@@ -138,7 +148,6 @@ class ProductController extends Controller
     {
         $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
 
-        // Hapus file gambar fisik dari storage jika ada
         if ($product->image_url && !filter_var($product->image_url, FILTER_VALIDATE_URL)) {
             \Illuminate\Support\Facades\Storage::disk('public')->delete($product->image_url);
         }

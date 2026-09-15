@@ -9,12 +9,13 @@ class Booking extends Model
 {
     use HasFactory;
 
+    // Tambahkan baris ini agar kolom-kolom tabel bisa disimpan
     protected $fillable = [
         'product_id',
         'user_id',
-        'qr_code_token',
-        'lokasi_cod',
-        'waktu_cod',
+        'qr_token',
+        'cod_location',
+        'cod_schedule',
         'status_cod',
     ];
 

@@ -33,17 +33,18 @@
 
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div class="flex items-start gap-4">
-                                <img src="{{ $b->product->image_url }}" class="w-16 h-16 rounded-2xl object-cover border border-gray-200 shrink-0">
+                                <img src="{{ filter_var($b->product->image_url ?? $b->product->image_path, FILTER_VALIDATE_URL) ? ($b->product->image_url ?? $b->product->image_path) : asset('storage/' . ($b->product->image_url ?? $b->product->image_path)) }}" class="w-16 h-16 rounded-2xl object-cover border border-gray-200 shrink-0" onerror="this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=80'">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
+                                        <!-- Disesuaikan menggunakan $b->qr_token sesuai database -->
                                         <span class="text-[10px] font-mono font-black bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md border border-blue-200">
-                                            TOKEN: {{ $b->qr_code_token ?? $b->qr_token }}
+                                            TOKEN: {{ $b->qr_token }}
                                         </span>
                                         <span class="text-xs text-gray-400">Penjual: <strong>{{ $b->product->user->name ?? 'Penjual Batam' }}</strong></span>
                                     </div>
                                     <h4 class="font-bold text-gray-800 text-base">{{ $b->product->nama_barang ?? $b->product->title }}</h4>
-                                    <p class="text-xs text-gray-500 mt-1">📍 <strong>Lokasi COD:</strong> {{ $b->lokasi_cod ?? $b->cod_location }}</p>
-                                    <p class="text-xs text-gray-500">⏰ <strong>Jadwal:</strong> {{ $b->waktu_cod ?? $b->cod_schedule }}</p>
+                                    <p class="text-xs text-gray-500 mt-1">📍 <strong>Lokasi COD:</strong> {{ $b->cod_location }}</p>
+                                    <p class="text-xs text-gray-500">⏰ <strong>Jadwal:</strong> {{ $b->cod_schedule }}</p>
                                 </div>
                             </div>
 
@@ -62,6 +63,15 @@
                                 @endif
                             </div>
                         </div>
+
+                        <!-- TAMPILAN KOTAK QR CODE -->
+                        @if($b->status_cod !== 'Completed')
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center max-w-xs mx-auto w-full my-2">
+                                <p class="text-[10px] text-slate-500 font-extrabold uppercase mb-2">Tunjukkan Token / QR ini saat bertemu Penjual:</p>
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data={{ $b->qr_token }}" alt="QR Code" class="mx-auto border p-2 rounded-lg bg-white shadow-xs">
+                                <span class="block font-mono font-black text-xs text-slate-800 mt-2 tracking-widest">{{ $b->qr_token }}</span>
+                            </div>
+                        @endif
 
                         <!-- MODUL REVIEW & RATING BINTANG  -->
                         @if($b->status_cod == 'Completed')

@@ -6,8 +6,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\BookingController;
-use App\Http\Controllers\AdminController; // <-- Semua 'use' ditaruh di atas
+use App\Http\Controllers\AdminController;
 
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
@@ -19,8 +18,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
     Route::post('/seller/verify-qr', [ProductController::class, 'verifyQrCode'])->name('booking.verify');
 
-    // Fitur Tiket Saya & Review
-    Route::get('/my-bookings', [BookingController::class, 'index'])->name('bookings.index');
+    // Fitur Tiket Saya & Review (Ditangani langsung tanpa BookingController)
+    Route::get('/my-bookings', function() {
+        $bookings = \App\Models\Booking::where('user_id', Auth::id())->latest()->get();
+        return view('my-bookings', compact('bookings'));
+    })->name('bookings.index');
+
     Route::post('/booking/{id}/review', [ReviewController::class, 'store'])->name('review.store');
 
     // Chat
@@ -40,11 +43,17 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/seller/{id}/reject', [AdminController::class, 'rejectSeller'])->name('admin.rejectSeller');
 });
 
+// Rute Hapus Produk oleh Penjual (Masuk dalam middleware auth)
+Route::middleware(['auth'])->group(function () {
+    Route::delete('/seller/product/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
+});
 
+Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
 
 require __DIR__.'/auth.php';
 
-
-
-// Rute Hapus Produk oleh Penjual
-Route::delete('/seller/product/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
+Route::get('/my-bookings', function() {
+    // Mengambil booking yang hanya dimiliki oleh user yang sedang login
+    $bookings = \App\Models\Booking::with(['product.user'])->where('user_id', Auth::id())->latest()->get();
+    return view('my-bookings', compact('bookings'));
+})->name('bookings.index');
