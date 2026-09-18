@@ -7,6 +7,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\RequestController;
 
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
@@ -57,3 +58,7 @@ Route::get('/my-bookings', function() {
     $bookings = \App\Models\Booking::with(['product.user'])->where('user_id', Auth::id())->latest()->get();
     return view('my-bookings', compact('bookings'));
 })->name('bookings.index');
+
+// Route untuk Fitur One to Buy / Request Barang
+Route::get('/requests', [RequestController::class, 'index'])->name('requests.index');
+Route::post('/requests', [RequestController::class, 'store'])->name('requests.store');
