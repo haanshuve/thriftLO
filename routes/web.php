@@ -12,24 +12,31 @@ use App\Http\Controllers\RequestController;
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
 
-// Middleware Autentikasi Umum
+// Middleware Autentikasi Umum (Buyer & Seller)
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [ProductController::class, 'sellerDashboard'])->name('dashboard');
     Route::post('/seller/product/store', [ProductController::class, 'store'])->name('product.store');
+    Route::delete('/seller/product/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
+
+    // Booking & Secure COD Smart QR Code
     Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
     Route::post('/seller/verify-qr', [ProductController::class, 'verifyQrCode'])->name('booking.verify');
 
-    // Fitur Tiket Saya & Review (Ditangani langsung tanpa BookingController)
+    // Tiket Saya & Review Booking
     Route::get('/my-bookings', function() {
-        $bookings = \App\Models\Booking::where('user_id', Auth::id())->latest()->get();
+        $bookings = \App\Models\Booking::with(['product.user'])->where('user_id', Auth::id())->latest()->get();
         return view('my-bookings', compact('bookings'));
     })->name('bookings.index');
 
     Route::post('/booking/{id}/review', [ReviewController::class, 'store'])->name('review.store');
 
-    // Chat
+    // Chat & Negosiasi Harga (Open Price)
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat/send', [ChatController::class, 'store'])->name('chat.send');
+
+    // Fitur One to Buy / Request Barang
+    Route::get('/requests', [RequestController::class, 'index'])->name('requests.index');
+    Route::post('/requests', [RequestController::class, 'store'])->name('requests.store');
 
     // Profil Breeze
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -44,21 +51,5 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/admin/seller/{id}/reject', [AdminController::class, 'rejectSeller'])->name('admin.rejectSeller');
 });
 
-// Rute Hapus Produk oleh Penjual (Masuk dalam middleware auth)
-Route::middleware(['auth'])->group(function () {
-    Route::delete('/seller/product/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
-});
-
-Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
-
+// Rute Autentikasi Bawaan Laravel Breeze
 require __DIR__.'/auth.php';
-
-Route::get('/my-bookings', function() {
-    // Mengambil booking yang hanya dimiliki oleh user yang sedang login
-    $bookings = \App\Models\Booking::with(['product.user'])->where('user_id', Auth::id())->latest()->get();
-    return view('my-bookings', compact('bookings'));
-})->name('bookings.index');
-
-// Route untuk Fitur One to Buy / Request Barang
-Route::get('/requests', [RequestController::class, 'index'])->name('requests.index');
-Route::post('/requests', [RequestController::class, 'store'])->name('requests.store');
