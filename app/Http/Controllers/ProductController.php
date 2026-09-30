@@ -19,8 +19,7 @@ class ProductController extends Controller
             $keyword = $request->search;
             $query->where(function($q) use ($keyword) {
                 $q->where('title', 'like', '%' . $keyword . '%')
-                  ->orWhere('description', 'like', '%' . $keyword . '%')
-                  ->orWhere('nama_barang', 'like', '%' . $keyword . '%'); // Mengantisipasi variasi nama kolom
+                  ->orWhere('description', 'like', '%' . $keyword . '%');
             });
         }
 

@@ -12,13 +12,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('title');
-            $table->text('description');
-            $table->enum('listing_mode', ['eceran', 'borongan']); // C2C vs B2B
-            $table->enum('grade_condition', ['A', 'B', 'C']);
+            $table->text('description')->nullable();
+            $table->string('kategori')->nullable();       // Fashion, Vintage Tech, dll
+            $table->string('mode_jual')->nullable();      // ecer (C2C) / borongan (B2B)
+            $table->string('grade')->nullable();          // Grade A/B/C
             $table->decimal('price', 12, 2);
-            $table->string('image_path');
-            $table->string('video_proof_path'); // Bukti fisik/fungsi anti-palsu
-            $table->enum('status', ['available', 'booked', 'sold'])->default('available');
+            $table->string('image_path')->nullable();
+            $table->string('image_url')->nullable();
+            $table->string('video_proof')->nullable();    // Bukti fisik/fungsi anti-palsu
+            $table->enum('status', ['Available', 'Booked', 'Sold Out'])->default('Available');
             $table->timestamps();
         });
     }
