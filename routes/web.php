@@ -45,7 +45,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Panel Admin Verifikasi Penjual
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/sellers', [AdminController::class, 'index'])->name('admin.sellers');
     Route::post('/admin/seller/{id}/verify', [AdminController::class, 'verifySeller'])->name('admin.verifySeller');
     Route::post('/admin/seller/{id}/reject', [AdminController::class, 'rejectSeller'])->name('admin.rejectSeller');

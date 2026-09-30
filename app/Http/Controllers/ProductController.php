@@ -127,7 +127,11 @@ class ProductController extends Controller
         ]);
 
         $cleanToken = strtoupper(trim($request->qr_code_token));
-        $booking = Booking::where('qr_token', $cleanToken)->first();
+        // Hanya booking untuk barang milik penjual yang sedang login
+        $booking = Booking::where('qr_token', $cleanToken)
+            ->whereHas('product', function ($q) {
+                $q->where('user_id', Auth::id());
+            })->first();
 
         if (!$booking) {
             return redirect()->back()->with('error', 'Token QR tidak ditemukan atau tidak valid!');
