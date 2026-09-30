@@ -23,12 +23,26 @@
             <form method="POST" action="{{ route('register') }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
 
+                @if ($errors->any())
+                    <div class="p-3 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700">
+                        <p class="font-black mb-1">Pendaftaran gagal, periksa kembali:</p>
+                        <ul class="list-disc list-inside space-y-0.5">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                        @if (old('role') === 'penjual')
+                            <p class="mt-1 text-red-600">Foto KTP & selfie perlu dipilih ulang.</p>
+                        @endif
+                    </div>
+                @endif
+
                 <!-- LOKASI PILIHAN ROLE (PEMBELI vs PENJUAL) -->
                 <div>
                     <label class="block text-xs font-black text-gray-700 mb-2 uppercase tracking-wider">Tahap 1: Pilih Peran Akun</label>
                     <div class="grid grid-cols-2 gap-3">
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="pembeli" id="rolePembeli" checked onchange="toggleSellerSection()" class="peer sr-only">
+                            <input type="radio" name="role" value="pembeli" id="rolePembeli" @checked(old('role', 'pembeli') === 'pembeli') onchange="toggleSellerSection()" class="peer sr-only">
                             <div class="p-3 text-center border-2 rounded-2xl border-gray-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/50 transition">
                                 <span class="text-xl block mb-1">🛍️</span>
                                 <span class="block text-xs font-black text-gray-800">Pembeli</span>
@@ -37,7 +51,7 @@
                         </label>
 
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="penjual" id="rolePenjual" onchange="toggleSellerSection()" class="peer sr-only">
+                            <input type="radio" name="role" value="penjual" id="rolePenjual" @checked(old('role') === 'penjual') onchange="toggleSellerSection()" class="peer sr-only">
                             <div class="p-3 text-center border-2 rounded-2xl border-gray-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/50 transition">
                                 <span class="text-xl block mb-1">🏬</span>
                                 <span class="block text-xs font-black text-gray-800">Penjual</span>
@@ -92,23 +106,23 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
                             <label class="block text-xs font-extrabold text-gray-700 mb-1">Nama Toko / Lapak</label>
-                            <input type="text" id="nama_toko" name="nama_toko" placeholder="Contoh: Batam Vintage Hub" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
+                            <input type="text" id="nama_toko" name="nama_toko" value="{{ old('nama_toko') }}" placeholder="Contoh: Batam Vintage Hub" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
                         </div>
                         <div>
                             <label class="block text-xs font-extrabold text-gray-700 mb-1">Lokasi Lapak / COD Batam</label>
-                            <input type="text" id="lokasi_lapak" name="lokasi_lapak" placeholder="Contoh: Batam Center / Sekupang" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
+                            <input type="text" id="lokasi_lapak" name="lokasi_lapak" value="{{ old('lokasi_lapak') }}" placeholder="Contoh: Batam Center / Sekupang" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         <div>
                             <label class="block text-xs font-extrabold text-gray-700 mb-1">📷 Upload Foto KTP / MHS</label>
-                            <input type="file" id="ktp_photo" name="ktp_photo" accept="image/*" class="w-full text-xs text-gray-500 bg-white border border-gray-200 rounded-xl p-2">
-                            <span class="text-[10px] text-gray-400 block mt-0.5">Format JPG/PNG maks 2MB</span>
+                            <input type="file" id="ktp_photo" name="ktp_photo" accept="image/jpeg,image/png,image/webp" class="w-full text-xs text-gray-500 bg-white border border-gray-200 rounded-xl p-2">
+                            <span class="text-[10px] text-gray-400 block mt-0.5">Format JPG/PNG/WEBP maks 5MB</span>
                         </div>
                         <div>
                             <label class="block text-xs font-extrabold text-gray-700 mb-1">🤳 Selfie Memegang Identitas</label>
-                            <input type="file" id="selfie_ktp" name="selfie_ktp" accept="image/*" class="w-full text-xs text-gray-500 bg-white border border-gray-200 rounded-xl p-2">
+                            <input type="file" id="selfie_ktp" name="selfie_ktp" accept="image/jpeg,image/png,image/webp" class="w-full text-xs text-gray-500 bg-white border border-gray-200 rounded-xl p-2">
                             <span class="text-[10px] text-gray-400 block mt-0.5">Wajah & KTP terlihat jelas</span>
                         </div>
                     </div>

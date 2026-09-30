@@ -47,6 +47,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Panel Admin Verifikasi Penjual
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/sellers', [AdminController::class, 'index'])->name('admin.sellers');
+    Route::get('/admin/seller/{id}/ktp', [AdminController::class, 'showKtp'])->name('admin.sellerKtp');
+    Route::get('/admin/seller/{id}/selfie', [AdminController::class, 'showSelfie'])->name('admin.sellerSelfie');
     Route::post('/admin/seller/{id}/verify', [AdminController::class, 'verifySeller'])->name('admin.verifySeller');
     Route::post('/admin/seller/{id}/reject', [AdminController::class, 'rejectSeller'])->name('admin.rejectSeller');
 });

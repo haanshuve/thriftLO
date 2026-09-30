@@ -33,11 +33,21 @@ class RegisteredUserController extends Controller
         if ($request->role === 'penjual') {
             $rules['nama_toko'] = ['required', 'string', 'max:255'];
             $rules['lokasi_lapak'] = ['required', 'string', 'max:255'];
-            $rules['ktp_photo'] = ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'];
-            $rules['selfie_ktp'] = ['required', 'image', 'mimes:jpeg,png,jpg', 'max:2048'];
+            // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
+            $rules['ktp_photo'] = ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'];
+            $rules['selfie_ktp'] = ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'];
         }
 
-        $request->validate($rules);
+        $request->validate($rules, [
+            'ktp_photo.required'  => 'Foto KTP wajib diunggah.',
+            'ktp_photo.image'     => 'Foto KTP harus berupa gambar (JPG, PNG, atau WEBP).',
+            'ktp_photo.mimes'     => 'Foto KTP harus berformat JPG, PNG, atau WEBP.',
+            'ktp_photo.max'       => 'Ukuran foto KTP maksimal 5MB.',
+            'selfie_ktp.required' => 'Foto selfie dengan KTP wajib diunggah.',
+            'selfie_ktp.image'    => 'Foto selfie harus berupa gambar (JPG, PNG, atau WEBP).',
+            'selfie_ktp.mimes'    => 'Foto selfie harus berformat JPG, PNG, atau WEBP.',
+            'selfie_ktp.max'      => 'Ukuran foto selfie maksimal 5MB.',
+        ]);
 
         // Proses simpan file KTP dan Selfie jika penjual
         $ktpPath = null;
@@ -45,10 +55,11 @@ class RegisteredUserController extends Controller
 
         if ($request->role === 'penjual') {
             if ($request->hasFile('ktp_photo')) {
-                $ktpPath = $request->file('ktp_photo')->store('kyc-ktp', 'public');
+                // Dokumen KYC disimpan di disk privat, hanya bisa dibuka admin lewat route admin.sellerKtp / admin.sellerSelfie
+                $ktpPath = $request->file('ktp_photo')->store('kyc-ktp', 'local');
             }
             if ($request->hasFile('selfie_ktp')) {
-                $selfiePath = $request->file('selfie_ktp')->store('kyc-selfie', 'public');
+                $selfiePath = $request->file('selfie_ktp')->store('kyc-selfie', 'local');
             }
         }
 
@@ -61,6 +72,7 @@ class RegisteredUserController extends Controller
             'nama_toko' => $request->role === 'penjual' ? $request->nama_toko : null,
             'lokasi_lapak' => $request->role === 'penjual' ? $request->lokasi_lapak : null,
             'ktp_number' => $request->role === 'penjual' ? 'VERIFIED-KYC' : null, // Mengisi placeholder ktp_number
+            'ktp_photo_path' => $ktpPath,
             'selfie_path' => $selfiePath,
             'seller_status' => $request->role === 'penjual' ? 'pending' : 'verified',
         ]);

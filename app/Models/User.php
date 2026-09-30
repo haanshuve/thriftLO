@@ -27,6 +27,7 @@ class User extends Authenticatable
     'nama_toko',
     'lokasi_lapak',
     'ktp_number',
+    'ktp_photo_path',
     'selfie_path',
     'seller_status',
 ];

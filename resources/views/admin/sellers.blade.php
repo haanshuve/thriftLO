@@ -46,11 +46,21 @@
                                 <span class="font-bold text-emerald-800 block">{{ $seller->nama_toko ?? '-' }}</span>
                                 <span class="text-gray-500 text-[11px]">📍 {{ $seller->lokasi_lapak ?? '-' }}</span>
                             </td>
-                            <td class="p-3">
-                                @if($seller->selfie_path)
-                                    <a href="{{ asset('storage/' . $seller->selfie_path) }}" target="_blank" class="text-indigo-600 font-bold underline hover:text-indigo-800">Lihat Foto Selfie</a>
+                            <td class="p-3 space-y-1.5">
+                                @if($seller->ktp_photo_path)
+                                    <a href="{{ route('admin.sellerKtp', $seller->id) }}" target="_blank" class="block w-fit" title="Buka foto KTP ukuran penuh">
+                                        <img src="{{ route('admin.sellerKtp', $seller->id) }}" alt="Foto KTP {{ $seller->name }}" class="w-28 h-auto rounded-lg border border-gray-200 shadow-sm hover:opacity-80 transition">
+                                    </a>
                                 @else
-                                    <span class="text-gray-400">Tidak ada file</span>
+                                    <span class="block text-gray-400">KTP: tidak ada file</span>
+                                @endif
+
+                                @if($seller->selfie_path)
+                                    <a href="{{ route('admin.sellerSelfie', $seller->id) }}" target="_blank" class="block w-fit" title="Buka foto selfie ukuran penuh">
+                                        <img src="{{ route('admin.sellerSelfie', $seller->id) }}" alt="Foto selfie {{ $seller->name }}" class="w-28 h-auto rounded-lg border border-gray-200 shadow-sm hover:opacity-80 transition">
+                                    </a>
+                                @else
+                                    <span class="block text-gray-400">Selfie: tidak ada file</span>
                                 @endif
                             </td>
                             <td class="p-3">
