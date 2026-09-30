@@ -182,11 +182,12 @@
                     @forelse($myBookings ?? [] as $booking)
                         <div class="p-3.5 bg-gray-50 rounded-xl border border-gray-200 flex justify-between items-center text-xs">
                             <div>
-                                <span class="font-mono font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px]">
-                                    TOKEN: {{ $booking->qr_code_token }}
+                                {{-- Token sengaja disamarkan: penjual harus memindai/meminta token dari HP pembeli saat COD --}}
+                                <span class="font-mono font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px]" title="Minta pembeli menunjukkan token QR saat bertemu">
+                                    TOKEN: TL-••••••••
                                 </span>
                                 <h5 class="font-bold text-gray-800 text-sm mt-1">{{ $booking->product->nama_barang ?? $booking->product->title ?? 'Produk' }}</h5>
-                                <p class="text-gray-500 mt-0.5">📍 Lokasi: <strong>{{ $booking->lokasi_cod }}</strong> | ⏰ Waktu: {{ $booking->waktu_cod }}</p>
+                                <p class="text-gray-500 mt-0.5">📍 Lokasi: <strong>{{ $booking->cod_location }}</strong> | ⏰ Waktu: {{ $booking->cod_schedule }}</p>
                             </div>
                             <span class="font-bold px-2.5 py-1 rounded-lg {{ $booking->status_cod == 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
                                 {{ $booking->status_cod }}
