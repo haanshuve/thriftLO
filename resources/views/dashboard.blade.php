@@ -1,272 +1,337 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                <h2 class="font-black text-xl text-gray-800 leading-tight flex items-center gap-2">
-                    🏬 Dashboard Penjual
-                    @if(Auth::user()->seller_status === 'verified')
-                        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-xs">
-                            ✓ Verified Seller
-                        </span>
-                    @else
-                        <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
-                            ⏳ Pending Verification
-                        </span>
-                    @endif
-                </h2>
-                <p class="text-xs text-gray-500 mt-1">Kelola stok preloved, unggah video proof, dan verifikasi Token QR COD Pembeli.</p>
+<x-market-layout title="Toko Saya">
+
+    @php
+        $user = Auth::user();
+        $isSeller = $user->role === 'penjual';
+        $isVerified = $isSeller && $user->seller_status === 'verified';
+        $categories = config('thriftlo.categories');
+        $myProducts = $myProducts ?? collect();
+        $myBookings = $myBookings ?? collect();
+
+        $countAvailable = $myProducts->filter(fn ($p) => strtolower($p->status) === 'available')->count();
+        $countBooked = $myProducts->filter(fn ($p) => strtolower($p->status) === 'booked')->count();
+        $countSold = $myProducts->filter(fn ($p) => strtolower($p->status) === 'sold out')->count();
+        $countPendingCod = $myBookings->whereIn('status_cod', ['Pending', 'Confirmed'])->count();
+
+        $statusCodClass = [
+            'Pending'   => 'bg-amber-100 text-amber-800',
+            'Confirmed' => 'bg-sky-100 text-sky-800',
+            'Completed' => 'bg-emerald-100 text-emerald-800',
+            'Cancelled' => 'bg-slate-200 text-slate-600',
+        ];
+        $statusCodLabel = [
+            'Pending'   => 'Menunggu COD',
+            'Confirmed' => 'Dikonfirmasi',
+            'Completed' => 'Selesai',
+            'Cancelled' => 'Dibatalkan',
+        ];
+        $imgSrc = fn ($p) => filter_var($p->image_url ?? $p->image_path, FILTER_VALIDATE_URL)
+            ? ($p->image_url ?? $p->image_path)
+            : asset('storage/' . ($p->image_url ?? $p->image_path));
+        $openUploadOnLoad = $errors->product->any();
+    @endphp
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5">
+
+        @unless($isSeller)
+            <section class="rounded-xl border border-slate-200 p-6 text-center">
+                <p class="text-4xl mb-2" aria-hidden="true">🏬</p>
+                <h1 class="text-lg font-bold text-slate-900">Halaman ini khusus penjual</h1>
+                <p class="text-sm text-slate-500 mt-1">Akunmu terdaftar sebagai pembeli. Lihat transaksi booking-mu di halaman Transaksi.</p>
+                <a href="{{ route('bookings.index') }}" class="inline-block mt-4 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">Ke Transaksi Saya</a>
+            </section>
+        @else
+
+        <!-- Kepala toko -->
+        <section class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-14 h-14 shrink-0 rounded-xl bg-emerald-600 text-white text-2xl font-black flex items-center justify-center" aria-hidden="true">
+                    {{ strtoupper(substr($user->nama_toko ?: $user->name, 0, 1)) }}
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">{{ $user->nama_toko ?: $user->name }}</h1>
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
+                        <span>📍 {{ $user->lokasi_lapak ?: 'Batam' }}</span>
+                        @if($isVerified)
+                            <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Penjual terverifikasi</span>
+                        @elseif($user->seller_status === 'rejected')
+                            <span class="inline-flex items-center gap-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">Verifikasi ditolak</span>
+                        @else
+                            <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">⏳ Menunggu verifikasi</span>
+                        @endif
+                    </div>
+                </div>
             </div>
 
-            <div>
-                @if(Auth::user()->seller_status === 'verified')
-                    <button onclick="document.getElementById('uploadModal').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2">
-                        + Jual Barang Baru
-                    </button>
-                @else
-                    <button onclick="alert('Verifikasi dokumen KYC kamu masih diproses Admin thriftLO. Kamu belum bisa menambah barang jualan.')" class="bg-gray-400 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow cursor-not-allowed flex items-center gap-2">
-                        🔒 Form Terkunci (Pending KYC)
-                    </button>
-                @endif
+            @if($isVerified)
+                <button type="button" onclick="openUploadModal()" class="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
+                    <span aria-hidden="true" class="text-lg leading-none">+</span> Jual Barang
+                </button>
+            @else
+                <button type="button" disabled class="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-400 text-sm font-semibold cursor-not-allowed" aria-describedby="kycStatus">
+                    🔒 Jual Barang
+                </button>
+            @endif
+        </section>
+
+        <!-- Notifikasi -->
+        @if(session('success'))
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">✅ {{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">⚠️ {{ session('error') }}</div>
+        @endif
+
+        <!-- Status KYC -->
+        @if($user->seller_status === 'pending')
+            <div id="kycStatus" class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p class="font-semibold">Dokumen KYC sedang ditinjau admin</p>
+                <p class="text-amber-800 mt-0.5">Foto KTP & selfie kamu diperiksa maksimal 1×24 jam. Setelah disetujui, kamu bisa mulai menayangkan barang.</p>
             </div>
-        </div>
-    </x-slot>
+        @elseif($user->seller_status === 'rejected')
+            <div id="kycStatus" class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                <p class="font-semibold">Verifikasi penjual ditolak</p>
+                <p class="mt-0.5">Dokumen KYC kamu belum bisa disetujui. Hubungi admin thriftLO lewat chat untuk informasi lebih lanjut.</p>
+            </div>
+        @endif
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-
-            <!-- Banner Notifikasi Alert Status -->
-            @if(session('success'))
-                <div class="bg-emerald-600 text-white p-4 rounded-2xl shadow font-bold text-sm">
-                    🎉 {{ session('success') }}
+        <!-- Statistik -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Ringkasan toko">
+            @foreach([
+                ['Barang tayang', $countAvailable, 'text-emerald-700'],
+                ['Sedang di-booking', $countBooked, 'text-amber-700'],
+                ['Terjual', $countSold, 'text-slate-900'],
+                ['Janji COD aktif', $countPendingCod, 'text-sky-700'],
+            ] as [$label, $value, $color])
+                <div class="rounded-xl border border-slate-200 px-4 py-3">
+                    <p class="text-xs text-slate-500">{{ $label }}</p>
+                    <p class="text-2xl font-bold tabular-nums {{ $color }}">{{ $value }}</p>
                 </div>
-            @endif
+            @endforeach
+        </section>
 
-            @if(session('error'))
-                <div class="bg-rose-500 text-white p-4 rounded-2xl shadow font-bold text-sm">
-                    ⚠️ {{ session('error') }}
-                </div>
-            @endif
+        <div class="grid lg:grid-cols-3 gap-5 items-start">
 
-            <!-- Banner Status Verifikasi Identitas (KYC Penjual) -->
-            @if(Auth::user()->role === 'penjual')
-                @if(Auth::user()->seller_status === 'pending')
-                    <div class="bg-amber-500 text-white p-4.5 rounded-2xl shadow-md border border-amber-400 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <div class="flex items-center gap-3">
-                            <span class="text-3xl">⏳</span>
-                            <div>
-                                <h4 class="font-extrabold text-sm">Verifikasi Dokumen KYC Dalam Antrean</h4>
-                                <p class="text-xs text-amber-100 mt-0.5">Dokumen KTP & Selfie kamu sedang ditinjau oleh Admin thriftLO Batam (Maksimal 1x24 Jam).</p>
-                            </div>
-                        </div>
-                        <span class="bg-amber-700/80 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider border border-amber-300">
-                            Status: Pending
-                        </span>
-                    </div>
-                @elseif(Auth::user()->seller_status === 'verified')
-                    <div class="bg-emerald-600 text-white p-4.5 rounded-2xl shadow-md border border-emerald-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                        <div class="flex items-center gap-3">
-                            <span class="text-3xl">🛡️</span>
-                            <div>
-                                <h4 class="font-extrabold text-sm">Akun Penjual Terverifikasi (Verified Seller)</h4>
-                                <p class="text-xs text-emerald-100 mt-0.5">Identitas Toko <strong>"{{ Auth::user()->nama_toko ?? 'Lapak Batam' }}"</strong> telah tervalidasi amanah. Kamu bebas memasarkan produk eceran maupun borongan.</p>
-                            </div>
-                        </div>
-                        <span class="bg-white text-emerald-900 text-[10px] font-black px-3 py-1 rounded-full uppercase shadow">
-                            Verified
-                        </span>
-                    </div>
-                @endif
-            @endif
-
-            <!-- Modul Verifikasi QR Code COD -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100 bg-gradient-to-r from-emerald-50/50 to-white">
-                <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded uppercase tracking-wider">Keamanan Transaksi O2O</span>
-                <h3 class="text-sm font-bold text-gray-800 mt-1.5">🔍 Verifikasi Token QR Code COD Batam</h3>
-                <p class="text-xs text-gray-500 mb-4">Masukkan Token QR yang ditunjukkan Pembeli saat bertemu di lokasi COD Batam untuk memvalidasi transaksi dan menyelesaikan pesanan.</p>
-
-                <form action="{{ route('booking.verify', ['id' => 1]) }}" method="POST" class="flex flex-col sm:flex-row gap-3">
+            <!-- Verifikasi QR COD -->
+            <section class="lg:order-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 sm:p-5">
+                <h2 class="font-bold text-slate-900">Verifikasi token QR</h2>
+                <p class="text-sm text-slate-600 mt-1">Saat bertemu pembeli, minta ia menunjukkan token QR di HP-nya, lalu masukkan di sini untuk menyelesaikan transaksi.</p>
+                <form action="{{ route('booking.verify') }}" method="POST" class="mt-3 flex gap-2">
                     @csrf
-                    <input type="text" name="qr_code_token" placeholder="CONTOH: TL-QWZ6TK1F" required class="w-full sm:w-80 border-gray-200 rounded-xl text-xs uppercase font-mono font-bold p-3 border focus:ring-emerald-500">
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-sm uppercase tracking-wider">
-                        Verifikasi QR
+                    <label for="qr_code_token" class="sr-only">Token QR pembeli</label>
+                    <input type="text" id="qr_code_token" name="qr_code_token" placeholder="TL-XXXXXXXX" required autocomplete="off" autocapitalize="characters"
+                           class="flex-1 min-w-0 border-slate-300 rounded-lg text-sm uppercase font-mono font-semibold focus:border-emerald-500 focus:ring-emerald-500">
+                    <button type="submit" class="shrink-0 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Verifikasi</button>
+                </form>
+            </section>
+
+            <!-- Janji COD -->
+            <section class="lg:order-1 lg:col-span-2 rounded-xl border border-slate-200">
+                <div class="px-4 py-3 border-b border-slate-200 flex items-baseline justify-between">
+                    <h2 class="font-bold text-slate-900">Janji COD</h2>
+                    <span class="text-xs text-slate-400">{{ $myBookings->count() }} booking</span>
+                </div>
+                <ul class="divide-y divide-slate-100">
+                    @forelse($myBookings as $booking)
+                        @php $bp = $booking->product; @endphp
+                        <li class="p-3 sm:p-4 flex gap-3">
+                            <img src="{{ $bp ? $imgSrc($bp) : '' }}" alt="" class="w-14 h-14 rounded-lg object-cover bg-slate-100 shrink-0"
+                                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=70'">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-start justify-between gap-2">
+                                    <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ $bp->title ?? 'Produk dihapus' }}</p>
+                                    <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $statusCodClass[$booking->status_cod] ?? 'bg-slate-100 text-slate-600' }}">
+                                        {{ $statusCodLabel[$booking->status_cod] ?? $booking->status_cod }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">Pembeli: <span class="font-medium text-slate-700">{{ $booking->user->name ?? '-' }}</span></p>
+                                <p class="text-xs text-slate-500 mt-0.5">
+                                    📍 {{ $booking->cod_location }} · ⏰ {{ \Illuminate\Support\Carbon::parse($booking->cod_schedule)->format('d M Y, H:i') }}
+                                </p>
+                                {{-- Token sengaja disamarkan: penjual harus meminta token dari HP pembeli saat COD --}}
+                                <p class="text-[11px] font-mono text-slate-400 mt-1" title="Minta pembeli menunjukkan token QR saat bertemu">TOKEN: TL-••••••••</p>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="px-4 py-8 text-center text-sm text-slate-500">Belum ada pembeli yang booking barangmu.</li>
+                    @endforelse
+                </ul>
+            </section>
+        </div>
+
+        <!-- Inventaris -->
+        <section>
+            <div class="flex items-baseline justify-between mb-3">
+                <h2 class="text-base sm:text-lg font-bold text-slate-900">Barang saya</h2>
+                <span class="text-xs text-slate-400">{{ $myProducts->count() }} barang</span>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                @forelse($myProducts as $item)
+                    @php
+                        $status = strtolower($item->status);
+                        [$statusText, $statusClass] = match ($status) {
+                            'available' => ['Tayang', 'bg-emerald-600 text-white'],
+                            'booked'    => ['Di-booking', 'bg-amber-400 text-amber-950'],
+                            default     => ['Terjual', 'bg-slate-700 text-white'],
+                        };
+                        $kondisi = preg_match('/\(([^)]+)\)/', (string) $item->grade, $m) ? $m[1] : ($item->grade ?: 'Preloved');
+                    @endphp
+                    <article class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+                        <div class="relative aspect-square bg-slate-100 overflow-hidden">
+                            <img src="{{ $imgSrc($item) }}" alt="{{ $item->title }}" loading="lazy"
+                                 class="w-full h-full object-cover {{ $status === 'available' ? '' : 'opacity-60' }}"
+                                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=500&q=80'">
+                            <span class="absolute top-2 left-2 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-sm {{ $statusClass }}">{{ $statusText }}</span>
+                            @if($item->mode_jual === 'borongan')
+                                <span class="absolute top-2 right-2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/90 text-slate-700 shadow-sm">📦 Borongan</span>
+                            @endif
+                        </div>
+                        <div class="p-2.5 sm:p-3 flex flex-col flex-1">
+                            <h3 class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $item->title }}">{{ $item->title }}</h3>
+                            <p class="mt-1 text-base font-bold text-emerald-700 tabular-nums">Rp{{ number_format($item->price, 0, ',', '.') }}</p>
+                            <p class="mt-0.5 text-[11px] text-slate-500 truncate">{{ $categories[$item->kategori]['label'] ?? ($item->kategori ?: 'Tanpa kategori') }} · {{ $kondisi }}</p>
+                            @if($item->video_proof)
+                                <a href="{{ $item->video_proof }}" target="_blank" rel="noopener" class="mt-0.5 text-[11px] font-semibold text-sky-700 hover:underline">🎥 Lihat video proof</a>
+                            @endif
+                            <form action="{{ route('product.destroy', $item->id) }}" method="POST" class="mt-auto pt-2.5"
+                                  onsubmit="return confirm('Hapus &quot;{{ addslashes($item->title) }}&quot; dari katalog?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="w-full h-8 rounded-lg border border-slate-200 text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 text-xs font-semibold">
+                                    Hapus
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                @empty
+                    <div class="col-span-full text-center py-12 rounded-xl border border-dashed border-slate-300">
+                        <p class="text-4xl mb-2" aria-hidden="true">📦</p>
+                        <p class="font-bold text-slate-800">Belum ada barang yang ditayangkan</p>
+                        @if($isVerified)
+                            <button type="button" onclick="openUploadModal()" class="mt-3 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">+ Jual barang pertamamu</button>
+                        @else
+                            <p class="text-sm text-slate-500 mt-1">Kamu bisa mulai berjualan setelah verifikasi KYC disetujui.</p>
+                        @endif
+                    </div>
+                @endforelse
+            </div>
+        </section>
+
+        @endunless
+    </main>
+
+    @if($isVerified)
+        <!-- Modal Jual Barang -->
+        <div id="uploadModal" class="fixed inset-0 bg-slate-900/60 {{ $openUploadOnLoad ? 'flex' : 'hidden' }} items-end sm:items-center justify-center z-50 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="uploadTitle">
+            <div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white flex justify-between items-center px-5 sm:px-6 py-4 border-b border-slate-100">
+                    <h3 id="uploadTitle" class="text-base font-bold text-slate-900">Jual barang preloved</h3>
+                    <button type="button" onclick="closeUploadModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl" aria-label="Tutup">&times;</button>
+                </div>
+
+                <form action="{{ route('product.store') }}" method="POST" enctype="multipart/form-data" class="px-5 sm:px-6 py-4 space-y-3.5">
+                    @csrf
+
+                    @if($errors->product->any())
+                        <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700" role="alert">
+                            <p class="font-semibold">Barang belum tersimpan:</p>
+                            <ul class="list-disc list-inside mt-0.5">
+                                @foreach($errors->product->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                            <p class="mt-1 text-rose-600">Foto produk perlu dipilih ulang.</p>
+                        </div>
+                    @endif
+
+                    <div>
+                        <label for="nama_barang" class="block text-sm font-semibold text-slate-700 mb-1">Nama barang</label>
+                        <input type="text" id="nama_barang" name="nama_barang" value="{{ old('nama_barang') }}" maxlength="255" required placeholder="Contoh: Jaket denim Levi's ukuran L"
+                               class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="kategori" class="block text-sm font-semibold text-slate-700 mb-1">Kategori</label>
+                            <select id="kategori" name="kategori" required class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                @foreach($categories as $value => $cat)
+                                    <option value="{{ $value }}" @selected(old('kategori') === $value)>{{ $cat['icon'] }} {{ $cat['label'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label for="mode_jual" class="block text-sm font-semibold text-slate-700 mb-1">Mode jual</label>
+                            <select id="mode_jual" name="mode_jual" class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                <option value="ecer" @selected(old('mode_jual', 'ecer') === 'ecer')>Eceran (satuan)</option>
+                                <option value="borongan" @selected(old('mode_jual') === 'borongan')>Borongan / paket</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="harga" class="block text-sm font-semibold text-slate-700 mb-1">Harga (Rp)</label>
+                            <input type="number" id="harga" name="harga" value="{{ old('harga') }}" min="0" step="500" inputmode="numeric" required placeholder="150000"
+                                   class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label for="grade" class="block text-sm font-semibold text-slate-700 mb-1">Kondisi</label>
+                            <select id="grade" name="grade" class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                                @foreach(config('thriftlo.grades') as $grade)
+                                    <option value="{{ $grade }}" @selected(old('grade') === $grade)>{{ $grade }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="image" class="block text-sm font-semibold text-slate-700 mb-1">Foto produk</label>
+                        <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp" required
+                               class="w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                        <p class="text-xs text-slate-400 mt-1">JPG, PNG, atau WEBP, maksimal 5MB. Foto persegi tampil paling bagus di katalog.</p>
+                    </div>
+
+                    <div>
+                        <label for="video_proof_url" class="block text-sm font-semibold text-slate-700 mb-1">Link video proof <span class="font-normal text-slate-400">(opsional)</span></label>
+                        <input type="url" id="video_proof_url" name="video_proof_url" value="{{ old('video_proof_url') }}" placeholder="https://youtube.com/..."
+                               class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
+                        <p class="text-xs text-slate-400 mt-1">Video kondisi asli barang membuat pembeli lebih percaya.</p>
+                    </div>
+
+                    <div>
+                        <label for="deskripsi" class="block text-sm font-semibold text-slate-700 mb-1">Deskripsi <span class="font-normal text-slate-400">(opsional)</span></label>
+                        <textarea id="deskripsi" name="deskripsi" rows="3" maxlength="2000" placeholder="Ukuran, minus, kelengkapan, dan alasan dijual..."
+                                  class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">{{ old('deskripsi') }}</textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">
+                        Tayangkan ke katalog
                     </button>
                 </form>
             </div>
-
-            <!-- Tabel Inventaris Stok Penjual -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="p-4 border-b border-gray-100 flex justify-between items-center">
-                    <div>
-                        <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">📦 Inventaris Stok Saya</h4>
-                        <span class="text-xs text-gray-400 font-semibold">Total: {{ isset($myProducts) ? $myProducts->count() : 0 }} Barang Ditayangkan</span>
-                    </div>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs text-gray-600">
-                        <thead class="bg-gray-50 text-gray-700 font-bold uppercase text-[10px]">
-                            <tr>
-                                <th class="p-3.5">Barang & Video Proof</th>
-                                <th class="p-3.5">Mode & Kategori</th>
-                                <th class="p-3.5">Harga Jual</th>
-                                <th class="p-3.5">Grade Fisik</th>
-                                <th class="p-3.5">Status Barang</th>
-                                <th class="p-3.5 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @forelse($myProducts ?? [] as $item)
-                                <tr class="hover:bg-gray-50/50 transition">
-                                    <td class="p-3.5 font-bold text-gray-800 flex items-center gap-3">
-                                        <img src="{{ filter_var($item->image_url, FILTER_VALIDATE_URL) ? $item->image_url : asset('storage/' . $item->image_url) }}" class="w-10 h-10 rounded-xl object-cover border border-gray-200 shadow-xs" onerror="this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=80'">
-                                        <div>
-                                            <span class="block text-sm text-gray-800 font-bold">{{ $item->nama_barang ?? $item->title }}</span>
-                                            @if($item->video_proof_url ?? $item->video_proof)
-                                                <a href="{{ $item->video_proof_url ?? $item->video_proof }}" target="_blank" class="text-[10px] text-blue-600 hover:underline font-semibold flex items-center gap-1 mt-0.5">
-                                                    🎥 Video Proof Disertakan
-                                                </a>
-                                            @else
-                                                <span class="text-[10px] text-emerald-600 font-semibold">✓ Fisik Verified</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td class="p-3.5">
-                                        <span class="font-extrabold uppercase text-[10px] px-2 py-0.5 rounded {{ $item->mode_jual == 'borongan' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800' }}">
-                                            {{ $item->mode_jual == 'borongan' ? '📦 BORONGAN' : '🛍️ ECERAN' }}
-                                        </span>
-                                        <span class="block text-[11px] text-gray-500 mt-1 font-medium">{{ $item->kategori }}</span>
-                                    </td>
-                                    <td class="p-3.5 font-extrabold text-emerald-700 text-sm">
-                                        Rp {{ number_format($item->harga ?? $item->price, 0, ',', '.') }}
-                                    </td>
-                                    <td class="p-3.5 font-semibold">
-                                        <span class="bg-gray-100 px-2 py-1 rounded-md text-gray-700 text-[11px] font-bold">{{ $item->grade }}</span>
-                                    </td>
-                                    <td class="p-3.5">
-                                        @if(strtolower($item->status) == 'available')
-                                            <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-lg text-[11px]">Available</span>
-                                        @elseif(strtolower($item->status) == 'booked')
-                                            <span class="bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-lg text-[11px]">Booked (Janji COD)</span>
-                                        @else
-                                            <span class="bg-gray-200 text-gray-600 font-bold px-2.5 py-1 rounded-lg text-[11px]">Sold Out</span>
-                                        @endif
-                                    </td>
-                                    <!-- Tombol Hapus Produk -->
-                                    <td class="p-3.5 text-center">
-                                        <form action="{{ route('product.destroy', $item->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus produk ini dari katalog?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-1.5 rounded-xl font-bold text-[11px] transition shadow-xs inline-flex items-center gap-1">
-                                                🗑️ Hapus
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="p-8 text-center text-gray-400">
-                                        <span class="text-3xl block mb-2">📦</span>
-                                        Belum ada barang yang kamu tayangkan. Klik <strong>"+ Jual Barang Baru"</strong> di atas.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tabel Janji Temu COD Aktif -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-5">
-                <h4 class="font-bold text-gray-800 text-sm mb-3">🤝 Daftar Janji Temu COD (Booking Pembeli)</h4>
-                <div class="space-y-3">
-                    @forelse($myBookings ?? [] as $booking)
-                        <div class="p-3.5 bg-gray-50 rounded-xl border border-gray-200 flex justify-between items-center text-xs">
-                            <div>
-                                {{-- Token sengaja disamarkan: penjual harus memindai/meminta token dari HP pembeli saat COD --}}
-                                <span class="font-mono font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-[10px]" title="Minta pembeli menunjukkan token QR saat bertemu">
-                                    TOKEN: TL-••••••••
-                                </span>
-                                <h5 class="font-bold text-gray-800 text-sm mt-1">{{ $booking->product->nama_barang ?? $booking->product->title ?? 'Produk' }}</h5>
-                                <p class="text-gray-500 mt-0.5">📍 Lokasi: <strong>{{ $booking->cod_location }}</strong> | ⏰ Waktu: {{ $booking->cod_schedule }}</p>
-                            </div>
-                            <span class="font-bold px-2.5 py-1 rounded-lg {{ $booking->status_cod == 'Completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
-                                {{ $booking->status_cod }}
-                            </span>
-                        </div>
-                    @empty
-                        <p class="text-xs text-gray-400 text-center py-4">Belum ada janji temu COD yang aktif saat ini.</p>
-                    @endforelse
-                </div>
-            </div>
-
         </div>
-    </div>
 
-    <!-- Modal Form Tambah Barang Baru -->
-    <div id="uploadModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4 backdrop-blur-xs">
-        <div class="bg-white p-6 rounded-3xl max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto border border-gray-100">
-            <div class="flex justify-between items-center mb-4 border-b pb-3 border-gray-100">
-                <h3 class="text-base font-black text-gray-800">📦 Form Upload Barang Preloved</h3>
-                <button onclick="document.getElementById('uploadModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
-            </div>
+        <script>
+            function openUploadModal() {
+                const modal = document.getElementById('uploadModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.getElementById('nama_barang').focus();
+            }
 
-            <form action="{{ route('product.store') }}" method="POST" enctype="multipart/form-data" class="space-y-3.5">
-                @csrf
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Nama Barang</label>
-                    <input type="text" name="nama_barang" placeholder="Contoh: Digicam Sony CyberShot / Kaos Vintage" required class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Mode Jual</label>
-                        <select name="mode_jual" class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border">
-                            <option value="ecer">Eceran (C2C)</option>
-                            <option value="borongan">Borongan / Paket (B2B)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Kategori</label>
-                        <select name="kategori" class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border">
-                            <option value="Fashion">Fashion / Pakaian</option>
-                            <option value="Vintage Tech">Vintage Tech (Gadget)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Harga (Rp)</label>
-                        <input type="number" name="harga" placeholder="150000" required class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1">Grade Kondisi</label>
-                        <select name="grade" class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border">
-                            <option value="Grade A (Like New)">Grade A (Like New)</option>
-                            <option value="Grade B (Minus Pemakaian)">Grade B (Minus Pemakaian)</option>
-                            <option value="Grade C (Need Repair)">Grade C (Need Repair)</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Upload Foto Produk</label>
-                    <input type="file" name="image" accept="image/*" required class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">URL Video Proof (Youtube/Drive)</label>
-                    <input type="url" name="video_proof_url" placeholder="https://youtube.com/..." class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border">
-                    <span class="text-[10px] text-gray-400 block mt-0.5">Membantu pembeli memverifikasi kondisi fisik asli.</span>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">Deskripsi Detail</label>
-                    <textarea name="deskripsi" rows="2" placeholder="Jelaskan kondisi fisik barang..." class="w-full border-gray-200 rounded-xl p-2.5 text-xs focus:ring-emerald-500 border"></textarea>
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 text-white font-extrabold py-3 rounded-xl hover:bg-emerald-700 transition text-xs shadow-md uppercase tracking-wider mt-2">
-                    Tayangkan Barang ke Katalog
-                </button>
-            </form>
-        </div>
-    </div>
+            function closeUploadModal() {
+                const modal = document.getElementById('uploadModal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
 
-    <!-- KOMPONEN FLOATING CHAT WIDGET -->
-    <x-floating-chat />
-
-</x-app-layout>
+            document.getElementById('uploadModal').addEventListener('click', function (e) {
+                if (e.target === this) closeUploadModal();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeUploadModal();
+            });
+        </script>
+    @endif
+</x-market-layout>

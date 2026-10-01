@@ -15,4 +15,13 @@ return [
         'Lainnya'      => ['label' => 'Lainnya',    'icon' => '📦'],
     ],
 
+    /*
+    | Grade kondisi barang. Teks dalam kurung ditampilkan sebagai badge di kartu produk.
+    */
+    'grades' => [
+        'Grade A (Like New)',
+        'Grade B (Minus Pemakaian)',
+        'Grade C (Need Repair)',
+    ],
+
 ];

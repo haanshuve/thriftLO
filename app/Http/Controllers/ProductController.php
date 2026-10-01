@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Booking;
-use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -39,23 +39,40 @@ class ProductController extends Controller
         $wastePreventedKg = ($totalItems * 0.5) + ($totalBookings * 1.2);
 
         $categories = config('thriftlo.categories');
-        $unreadCount = Auth::check()
-            ? Message::where('receiver_id', Auth::id())->where('is_read', false)->count()
-            : 0;
 
-        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories', 'unreadCount'));
+        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'nama_barang' => 'required|string|max:255',
-            'mode_jual'   => 'required|string',
-            'kategori'    => 'required|string',
-            'harga'       => 'required|numeric',
-            'grade'       => 'required|string',
-            'image'       => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
-            'deskripsi'   => 'nullable|string',
+        // Form di dashboard dikunci untuk penjual yang belum lolos KYC; cek juga di server
+        $user = Auth::user();
+        if ($user->role !== 'penjual' || $user->seller_status !== 'verified') {
+            return redirect()->route('dashboard')->with('error', 'Hanya penjual terverifikasi yang bisa menayangkan barang.');
+        }
+
+        $request->validateWithBag('product', [
+            'nama_barang'     => 'required|string|max:255',
+            'mode_jual'       => ['required', Rule::in(['ecer', 'borongan'])],
+            'kategori'        => ['required', Rule::in(array_keys(config('thriftlo.categories')))],
+            'harga'           => 'required|numeric|min:0',
+            'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
+            // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
+            'image'           => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'video_proof_url' => 'nullable|url|max:500',
+            'deskripsi'       => 'nullable|string|max:2000',
+        ], [
+            'nama_barang.required' => 'Nama barang wajib diisi.',
+            'kategori.in'          => 'Pilih kategori dari daftar yang tersedia.',
+            'grade.in'             => 'Pilih grade kondisi dari daftar yang tersedia.',
+            'harga.required'       => 'Harga wajib diisi.',
+            'harga.numeric'        => 'Harga harus berupa angka.',
+            'harga.min'            => 'Harga tidak boleh negatif.',
+            'image.required'       => 'Foto produk wajib diunggah.',
+            'image.image'          => 'Foto produk harus berupa gambar (JPG, PNG, atau WEBP).',
+            'image.mimes'          => 'Foto produk harus berformat JPG, PNG, atau WEBP.',
+            'image.max'            => 'Ukuran foto produk maksimal 5MB.',
+            'video_proof_url.url'  => 'Link video proof harus berupa URL yang valid (diawali https://).',
         ]);
 
         $imagePath = null;
