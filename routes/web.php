@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
@@ -12,12 +13,19 @@ use App\Http\Controllers\SubscriptionController;
 
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
+Route::get('/product/{product}', [ProductController::class, 'show'])->name('product.show');
 
 // Middleware Autentikasi Umum (Buyer & Seller)
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [ProductController::class, 'sellerDashboard'])->name('dashboard');
     Route::post('/seller/product/store', [ProductController::class, 'store'])->name('product.store');
     Route::delete('/seller/product/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
+    Route::get('/seller/product/{id}/edit', [ProductController::class, 'edit'])->name('product.edit');
+    Route::put('/seller/product/{id}', [ProductController::class, 'update'])->name('product.update');
+
+    // Pengiriman (penjual di luar Batam)
+    Route::post('/product/{product}/checkout', [OrderController::class, 'store'])->name('order.store');
+    Route::patch('/seller/order/{order}/ship', [OrderController::class, 'ship'])->name('order.ship');
 
     // Langganan penjual (Rp5.000/bulan untuk produk unlimited)
     Route::get('/seller/langganan', [SubscriptionController::class, 'show'])->name('subscription.show');
@@ -30,7 +38,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Tiket Saya & Review Booking
     Route::get('/my-bookings', function() {
         $bookings = \App\Models\Booking::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
-        return view('my-bookings', compact('bookings'));
+        $orders = \App\Models\Order::with('product.user')->where('user_id', Auth::id())->latest()->get();
+        return view('my-bookings', compact('bookings', 'orders'));
     })->name('bookings.index');
 
     Route::post('/booking/{id}/review', [ReviewController::class, 'store'])->name('review.store');

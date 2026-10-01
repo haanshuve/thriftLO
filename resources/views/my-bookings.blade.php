@@ -37,6 +37,42 @@
             <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">⚠️ {{ session('error') }}</div>
         @endif
 
+        <!-- Pesanan lewat pengiriman -->
+        @php $orders = $orders ?? collect(); @endphp
+        @if($orders->isNotEmpty())
+            <section aria-labelledby="judulPesanan" class="space-y-3">
+                <h2 id="judulPesanan" class="text-base font-bold text-slate-900">Pesanan pengiriman</h2>
+                @foreach($orders as $order)
+                    @php $op = $order->product; $awaiting = $order->status === \App\Models\Order::AWAITING_SHIPMENT; @endphp
+                    <article class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                        <div class="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
+                            <p class="text-sm font-semibold text-slate-700 truncate">🏬 {{ $op->user->nama_toko ?? $op->user->name ?? 'Penjual' }}</p>
+                            <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $awaiting ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800' }}">{{ $order->statusLabel() }}</span>
+                        </div>
+                        <div class="p-4 flex gap-3">
+                            <img src="{{ $imgSrc($op) }}" alt="" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover bg-slate-100 shrink-0"
+                                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=70'">
+                            <div class="flex-1 min-w-0 text-xs text-slate-500 space-y-0.5">
+                                <h3 class="text-sm sm:text-base text-slate-900 leading-snug line-clamp-2">{{ $op->title }}</h3>
+                                <p>🚚 {{ $order->courier }} · Ongkir Rp{{ number_format($order->shipping_cost, 0, ',', '.') }}</p>
+                                <p class="text-sm font-bold text-emerald-700 tabular-nums">Total Rp{{ number_format($order->total_price, 0, ',', '.') }}</p>
+                                <p class="whitespace-pre-line">🏠 {{ $order->shipping_address }}</p>
+                                <p>{{ $awaiting ? 'Dipesan ' . $order->created_at->format('d M Y, H:i') . ', menunggu penjual mengirim.' : 'Dikirim ' . $order->shipped_at?->format('d M Y, H:i') . '.' }}</p>
+                            </div>
+                        </div>
+                        <div class="px-4 pb-4">
+                            <a href="{{ route('chat.index', ['user_id' => $op->user_id, 'product_id' => $op->id]) }}"
+                               class="flex items-center justify-center gap-2 h-10 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold">
+                                Chat Penjual
+                            </a>
+                        </div>
+                    </article>
+                @endforeach
+            </section>
+
+            <h2 class="text-base font-bold text-slate-900 pt-2">Tiket COD</h2>
+        @endif
+
         <!-- Tab status -->
         <nav class="flex border-b border-slate-200" aria-label="Status tiket">
             @foreach(['aktif' => ['Aktif', $activeBookings->count()], 'riwayat' => ['Riwayat', $historyBookings->count()]] as $key => [$label, $count])

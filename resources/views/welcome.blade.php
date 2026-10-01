@@ -106,10 +106,12 @@
                             };
                             $isAvailable = strtolower($p->status) === 'available';
                             $isOwn = (int) auth()->id() === (int) $p->user_id;
+                            $canCod = $p->supportsCod();
+                            $detailUrl = route('product.show', $p);
                         @endphp
 
                         <article class="group bg-white rounded-xl border border-slate-200/80 overflow-hidden flex flex-col shadow-sm shadow-slate-200/70 transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-200 focus-within:ring-2 focus-within:ring-emerald-500/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-                            <div class="relative aspect-square bg-slate-100 overflow-hidden animate-pulse">
+                            <a href="{{ $detailUrl }}" class="relative block aspect-square bg-slate-100 overflow-hidden animate-pulse" aria-label="Lihat detail {{ $name }}">
                                 <img src="{{ $img }}" alt="{{ $name }}" loading="lazy"
                                      class="img-fade w-full h-full object-cover opacity-0 transition duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100 {{ $isAvailable ? '' : 'grayscale-[40%]' }}"
                                      onload="this.classList.remove('opacity-0'); this.parentElement.classList.remove('animate-pulse')"
@@ -124,14 +126,16 @@
                                 @unless($isAvailable)
                                     <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-xs font-semibold text-center py-1.5">Udah di-booking orang</span>
                                 @endunless
-                            </div>
+                            </a>
 
                             <div class="p-2.5 sm:p-3 flex flex-col flex-1">
-                                <h3 class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $name }}">{{ $name }}</h3>
+                                <h3 class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $name }}">
+                                    <a href="{{ $detailUrl }}" class="hover:text-emerald-700">{{ $name }}</a>
+                                </h3>
 
                                 <p class="mt-1 text-base sm:text-lg font-bold text-emerald-700 tabular-nums">Rp{{ number_format($p->price, 0, ',', '.') }}</p>
 
-                                <p class="mt-1 text-[11px] text-slate-500 truncate">📍 {{ $p->user->lokasi_lapak ?? 'Batam' }} · {{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
+                                <p class="mt-1 text-[11px] text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $p->user->lokasi_lapak ?: 'Lokasi belum diisi' }} ·{{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
 
                                 <div class="mt-auto pt-2.5 flex gap-1.5">
                                     @if($isOwn)
@@ -142,11 +146,17 @@
                                            aria-label="Tanya penjual soal {{ $name }}" title="Tanya penjual">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
                                         </a>
-                                        @if($isAvailable)
+                                        @if($isAvailable && $canCod)
                                             <button type="button" data-url="{{ route('product.book', $p->id) }}" data-name="{{ $name }}" onclick="openBookingModal(this)"
                                                     class="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 text-white text-xs sm:text-sm font-semibold transition active:scale-95 motion-reduce:transform-none">
-                                                <span class="sm:hidden">Amankan</span><span class="hidden sm:inline">Amankan Barang</span>
+                                                Booking COD
                                             </button>
+                                        @elseif($isAvailable)
+                                            {{-- Penjual di luar Batam: tidak ada COD, pilih kurir di halaman detail --}}
+                                            <a href="{{ $detailUrl }}#pengiriman"
+                                               class="flex-1 h-9 inline-flex items-center justify-center rounded-lg bg-sky-600 hover:bg-sky-700 hover:shadow-md hover:shadow-sky-600/30 text-white text-xs sm:text-sm font-semibold transition active:scale-95 motion-reduce:transform-none">
+                                                <span class="sm:hidden">Pengiriman</span><span class="hidden sm:inline">Pilih Pengiriman</span>
+                                            </a>
                                         @else
                                             <button type="button" disabled class="flex-1 h-9 rounded-lg bg-slate-100 text-slate-400 text-xs sm:text-sm font-semibold cursor-not-allowed">
                                                 Di-booking
@@ -184,73 +194,5 @@
         </footer>
     </main>
 
-    <!-- Modal amankan barang (booking COD) -->
-    <div id="bookingModal" class="fixed inset-0 bg-slate-900/60 hidden items-end sm:items-center justify-center z-50 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="bookingTitle">
-        <div class="animate-fade-up bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 shadow-xl">
-            <div class="flex justify-between items-start gap-3 mb-4">
-                <div>
-                    <h3 id="bookingTitle" class="text-base font-bold text-slate-900">Amankan barang ini</h3>
-                    <p class="text-sm text-slate-500 mt-0.5">Atur tempat dan waktu ketemuan sama penjualnya.</p>
-                </div>
-                <button type="button" onclick="closeBookingModal()" class="w-8 h-8 shrink-0 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl transition" aria-label="Tutup">&times;</button>
-            </div>
-
-            <form id="bookingForm" method="POST" action="" class="space-y-3">
-                @csrf
-                <div>
-                    <label for="modalProductName" class="block text-sm font-semibold text-slate-700 mb-1">Barang</label>
-                    <input type="text" id="modalProductName" disabled class="w-full bg-slate-100 border-slate-200 rounded-lg text-sm font-semibold text-emerald-800">
-                </div>
-                <div>
-                    <label for="lokasi_cod" class="block text-sm font-semibold text-slate-700 mb-1">Mau ketemuan di mana?</label>
-                    <input type="text" id="lokasi_cod" name="lokasi_cod" placeholder="Contoh: Mega Mall Batam Centre" required class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                </div>
-                <div>
-                    <label for="waktu_cod" class="block text-sm font-semibold text-slate-700 mb-1">Kapan?</label>
-                    <input type="datetime-local" id="waktu_cod" name="waktu_cod" required class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                </div>
-                <p class="text-xs text-slate-500">Barangnya langsung dikunci buat kamu. Kamu dapat token QR yang tinggal ditunjukin ke penjual pas ketemuan, dan baru bayar setelah barangnya kamu cek.</p>
-                <button type="submit" id="bookingSubmit" class="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait motion-reduce:transform-none">
-                    Kunci Barangnya
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        function openBookingModal(button) {
-            document.getElementById('modalProductName').value = button.dataset.name;
-            document.getElementById('bookingForm').action = button.dataset.url;
-
-            // Jadwal COD tidak bisa dipilih di masa lalu
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('waktu_cod').min = now.toISOString().slice(0, 16);
-
-            const modal = document.getElementById('bookingModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.getElementById('lokasi_cod').focus();
-        }
-
-        function closeBookingModal() {
-            const modal = document.getElementById('bookingModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        // Loading state: kunci tombol supaya booking tidak terkirim dua kali
-        document.getElementById('bookingForm').addEventListener('submit', function () {
-            const button = document.getElementById('bookingSubmit');
-            button.disabled = true;
-            button.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> Lagi ngunciin barangnya...';
-        });
-
-        document.getElementById('bookingModal').addEventListener('click', function (e) {
-            if (e.target === this) closeBookingModal();
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeBookingModal();
-        });
-    </script>
+    <x-booking-modal />
 </x-market-layout>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Booking;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -56,6 +57,78 @@ class ProductController extends Controller
             return redirect()->route('subscription.show')->with('limit_reached', true);
         }
 
+        $this->validateProduct($request, imageRequired: true);
+
+        $imagePath = $request->file('image')->store('products', 'public');
+
+        Product::create([
+            'user_id'    => auth()->id(),
+            'image_url'  => $imagePath,
+            'image_path' => $imagePath,
+            'status'     => 'Available',
+            ...$this->productAttributes($request),
+        ]);
+
+        return redirect()->back()->with('success', 'Barang preloved berhasil ditayangkan!');
+    }
+
+    // Halaman detail produk: COD untuk penjual Batam, pilih pengiriman untuk penjual luar Batam
+    public function show(Product $product)
+    {
+        $product->load('user');
+        $isOwner = (int) Auth::id() === (int) $product->user_id;
+
+        // Produk yang disembunyikan karena kuota penjual habis hanya bisa dilihat pemiliknya
+        $isHidden = in_array($product->status, Product::ACTIVE_STATUSES, true)
+            && !Product::visibleInCatalog()->whereKey($product->id)->exists();
+        abort_if($isHidden && !$isOwner, 404);
+
+        return view('products.show', [
+            'product'    => $product,
+            'isOwner'    => $isOwner,
+            'categories' => config('thriftlo.categories'),
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+
+        return view('products.edit', ['product' => $product, 'sellerInBatam' => Auth::user()->isInBatam()]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+
+        $this->validateProduct($request, imageRequired: false);
+
+        $attributes = $this->productAttributes($request);
+
+        if ($request->hasFile('image')) {
+            $oldImage = $product->image_url;
+            $attributes['image_url'] = $attributes['image_path'] = $request->file('image')->store('products', 'public');
+
+            if ($oldImage && !filter_var($oldImage, FILTER_VALIDATE_URL)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldImage);
+            }
+        }
+
+        $product->update($attributes);
+
+        return redirect()->route('dashboard')->with('success', 'Barang "' . $product->title . '" berhasil diperbarui.');
+    }
+
+    private function validateProduct(Request $request, bool $imageRequired): void
+    {
+        // Baris opsi pengiriman yang dibiarkan kosong di form diabaikan
+        $request->merge([
+            'shipping_options' => collect($request->input('shipping_options', []))
+                ->filter(fn ($o) => is_array($o) && (trim((string) ($o['courier'] ?? '')) !== '' || trim((string) ($o['cost'] ?? '')) !== ''))
+                ->values()
+                ->all(),
+        ]);
+
         $request->validateWithBag('product', [
             'nama_barang'     => 'required|string|max:255',
             'mode_jual'       => ['required', Rule::in(['ecer', 'borongan'])],
@@ -63,9 +136,13 @@ class ProductController extends Controller
             'harga'           => 'required|numeric|min:0',
             'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
             // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
-            'image'           => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'image'           => [$imageRequired ? 'required' : 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
             'video_proof_url' => 'nullable|url|max:500',
             'deskripsi'       => 'nullable|string|max:2000',
+            // Penjual di luar Batam tidak bisa COD, jadi wajib menyediakan pengiriman
+            'shipping_options'           => [Auth::user()->isInBatam() ? 'nullable' : 'required', 'array', 'max:10'],
+            'shipping_options.*.courier' => 'required|string|max:60',
+            'shipping_options.*.cost'    => 'required|integer|min:0|max:10000000',
         ], [
             'nama_barang.required' => 'Nama barang wajib diisi.',
             'kategori.in'          => 'Pilih kategori dari daftar yang tersedia.',
@@ -78,28 +155,33 @@ class ProductController extends Controller
             'image.mimes'          => 'Foto produk harus berformat JPG, PNG, atau WEBP.',
             'image.max'            => 'Ukuran foto produk maksimal 5MB.',
             'video_proof_url.url'  => 'Link video proof harus berupa URL yang valid (diawali https://).',
+            'shipping_options.required'           => 'Lapakmu di luar Batam, jadi tambahkan minimal 1 opsi pengiriman.',
+            'shipping_options.max'                => 'Maksimal 10 opsi pengiriman.',
+            'shipping_options.*.courier.required' => 'Nama kurir wajib diisi di setiap opsi pengiriman.',
+            'shipping_options.*.courier.max'      => 'Nama kurir maksimal 60 karakter.',
+            'shipping_options.*.cost.required'    => 'Ongkir wajib diisi di setiap opsi pengiriman.',
+            'shipping_options.*.cost.integer'     => 'Ongkir harus berupa angka rupiah tanpa titik atau koma.',
+            'shipping_options.*.cost.min'         => 'Ongkir tidak boleh negatif.',
+            'shipping_options.*.cost.max'         => 'Ongkir maksimal Rp10.000.000.',
         ]);
+    }
 
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('products', 'public');
-        }
+    private function productAttributes(Request $request): array
+    {
+        $shipping = collect($request->input('shipping_options', []))
+            ->map(fn ($o) => ['courier' => trim($o['courier']), 'cost' => (int) $o['cost']])
+            ->all();
 
-        Product::create([
-            'user_id'     => auth()->id(),
-            'title'       => $request->nama_barang,
-            'mode_jual'   => $request->mode_jual,
-            'kategori'    => $request->kategori,
-            'price'       => $request->harga,
-            'grade'       => $request->grade,
-            'image_url'   => $imagePath,
-            'image_path'  => $imagePath,
-            'video_proof' => $request->video_proof_url,
-            'description' => $request->deskripsi,
-            'status'      => 'Available',
-        ]);
-
-        return redirect()->back()->with('success', 'Barang preloved berhasil ditayangkan!');
+        return [
+            'title'            => $request->nama_barang,
+            'mode_jual'        => $request->mode_jual,
+            'kategori'         => $request->kategori,
+            'price'            => $request->harga,
+            'grade'            => $request->grade,
+            'video_proof'      => $request->video_proof_url,
+            'description'      => $request->deskripsi,
+            'shipping_options' => $shipping ?: null,
+        ];
     }
 
     public function bookProduct(Request $request, $id)
@@ -117,6 +199,11 @@ class ProductController extends Controller
 
         if (strtolower($product->status) !== 'available') {
             return redirect()->back()->with('error', 'Yah, barang ini keburu di-booking orang lain. Cek barang lain yang mirip, yuk!');
+        }
+
+        // COD hanya untuk penjual di Batam; penjual luar Batam lewat pengiriman
+        if (!$product->supportsCod()) {
+            return redirect()->route('product.show', $product)->with('error', 'COD hanya tersedia untuk penjual di Batam. Pilih opsi pengiriman di bawah, ya.');
         }
 
         // Barang yang disembunyikan karena kuota penjual habis tidak bisa di-booking lewat URL langsung
@@ -156,7 +243,12 @@ class ProductController extends Controller
             : $myProducts->whereIn('status', Product::ACTIVE_STATUSES)->sortBy('id')
                 ->slice((int) config('thriftlo.subscription.free_product_limit'))->pluck('id')->all();
 
-        return view('dashboard', compact('myProducts', 'myBookings', 'hiddenProductIds'));
+        // Pesanan lewat pengiriman untuk barang milik penjual
+        $myOrders = Order::with(['product', 'user'])
+            ->whereHas('product', fn ($q) => $q->where('user_id', $user->id))
+            ->latest()->get();
+
+        return view('dashboard', compact('myProducts', 'myBookings', 'hiddenProductIds', 'myOrders'));
     }
 
     public function verifyQrCode(Request $request)

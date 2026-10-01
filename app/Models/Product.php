@@ -21,8 +21,33 @@ class Product extends Model
         'image_path',
         'image_url',
         'video_proof',
+        'shipping_options',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'shipping_options' => 'array',
+        ];
+    }
+
+    // COD (ketemu langsung) hanya untuk penjual yang lapaknya di Batam
+    public function supportsCod(): bool
+    {
+        return (bool) $this->user?->isInBatam();
+    }
+
+    /** @return list<array{courier: string, cost: int}> */
+    public function shippingOptions(): array
+    {
+        return $this->shipping_options ?? [];
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
 
     // Ototatis isi kolom image_path jika kosong agar tidak error database
     protected static function booted()

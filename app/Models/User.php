@@ -62,6 +62,12 @@ class User extends Authenticatable
         return $this->hasMany(Product::class);
     }
 
+    // Lokasi lapak dari registrasi KYC; COD hanya tersedia kalau mengandung kata "Batam"
+    public function isInBatam(): bool
+    {
+        return str_contains(mb_strtolower((string) $this->lokasi_lapak), 'batam');
+    }
+
     public function hasActiveSubscription(): bool
     {
         return $this->subscription_expires_at !== null && $this->subscription_expires_at->isFuture();

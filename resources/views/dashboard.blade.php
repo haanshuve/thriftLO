@@ -193,6 +193,50 @@
             </section>
         </div>
 
+        <!-- Pesanan lewat pengiriman -->
+        @php $myOrders = $myOrders ?? collect(); @endphp
+        @if($myOrders->isNotEmpty() || !$user->isInBatam())
+            <section class="rounded-xl border border-slate-200">
+                <div class="px-4 py-3 border-b border-slate-200 flex items-baseline justify-between">
+                    <h2 class="font-bold text-slate-900">Pesanan pengiriman</h2>
+                    <span class="text-xs text-slate-400">{{ $myOrders->where('status', \App\Models\Order::AWAITING_SHIPMENT)->count() }} perlu dikirim</span>
+                </div>
+                <ul class="divide-y divide-slate-100">
+                    @forelse($myOrders as $order)
+                        @php $op = $order->product; $awaiting = $order->status === \App\Models\Order::AWAITING_SHIPMENT; @endphp
+                        <li class="p-3 sm:p-4 flex flex-col sm:flex-row gap-3">
+                            <div class="flex gap-3 flex-1 min-w-0">
+                                <img src="{{ $imgSrc($op) }}" alt="" class="w-14 h-14 rounded-lg object-cover bg-slate-100 shrink-0"
+                                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=70'">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ $op->title }}</p>
+                                        <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $awaiting ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800' }}">{{ $order->statusLabel() }}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mt-0.5">Pembeli: <span class="font-medium text-slate-700">{{ $order->user->name ?? '-' }}</span> · {{ $order->created_at->format('d M Y, H:i') }}</p>
+                                    <p class="text-xs text-slate-500 mt-0.5">🚚 {{ $order->courier }} · Ongkir Rp{{ number_format($order->shipping_cost, 0, ',', '.') }} · <span class="font-semibold text-slate-700">Total Rp{{ number_format($order->total_price, 0, ',', '.') }}</span></p>
+                                    <p class="text-xs text-slate-500 mt-0.5 whitespace-pre-line">🏠 {{ $order->shipping_address }}</p>
+                                    @if($order->shipped_at)
+                                        <p class="text-xs text-slate-400 mt-0.5">Dikirim {{ $order->shipped_at->format('d M Y, H:i') }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                            @if($awaiting)
+                                <form action="{{ route('order.ship', $order) }}" method="POST" class="sm:self-center"
+                                      onsubmit="return confirm('Tandai pesanan &quot;{{ addslashes($op->title) }}&quot; sudah dikirim?')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="w-full sm:w-auto h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Tandai Sudah Dikirim</button>
+                                </form>
+                            @endif
+                        </li>
+                    @empty
+                        <li class="px-4 py-8 text-center text-sm text-slate-500">Belum ada pesanan. Pembeli dari luar Batam bisa memesan lewat opsi pengiriman di produkmu.</li>
+                    @endforelse
+                </ul>
+            </section>
+        @endif
+
         <!-- Inventaris -->
         <section>
             <div class="flex items-baseline justify-between mb-3">
@@ -231,14 +275,22 @@
                             @if($item->video_proof)
                                 <a href="{{ $item->video_proof }}" target="_blank" rel="noopener" class="mt-0.5 text-[11px] font-semibold text-sky-700 hover:underline">🎥 Lihat video proof</a>
                             @endif
-                            <form action="{{ route('product.destroy', $item->id) }}" method="POST" class="mt-auto pt-2.5"
-                                  onsubmit="return confirm('Hapus &quot;{{ addslashes($item->title) }}&quot; dari katalog?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="w-full h-8 rounded-lg border border-slate-200 text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 text-xs font-semibold">
-                                    Hapus
-                                </button>
-                            </form>
+                            @if($item->shipping_options)
+                                <p class="mt-0.5 text-[11px] text-slate-500">🚚 {{ count($item->shipping_options) }} opsi pengiriman</p>
+                            @endif
+                            <div class="mt-auto pt-2.5 flex gap-1.5">
+                                <a href="{{ route('product.edit', $item->id) }}" class="flex-1 h-8 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 text-xs font-semibold">
+                                    Edit
+                                </a>
+                                <form action="{{ route('product.destroy', $item->id) }}" method="POST" class="flex-1"
+                                      onsubmit="return confirm('Hapus &quot;{{ addslashes($item->title) }}&quot; dari katalog?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="w-full h-8 rounded-lg border border-slate-200 text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 text-xs font-semibold">
+                                        Hapus
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </article>
                 @empty
@@ -282,65 +334,7 @@
                         </div>
                     @endif
 
-                    <div>
-                        <label for="nama_barang" class="block text-sm font-semibold text-slate-700 mb-1">Nama barang</label>
-                        <input type="text" id="nama_barang" name="nama_barang" value="{{ old('nama_barang') }}" maxlength="255" required placeholder="Contoh: Jaket denim Levi's ukuran L"
-                               class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label for="kategori" class="block text-sm font-semibold text-slate-700 mb-1">Kategori</label>
-                            <select id="kategori" name="kategori" required class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                                @foreach($categories as $value => $cat)
-                                    <option value="{{ $value }}" @selected(old('kategori') === $value)>{{ $cat['icon'] }} {{ $cat['label'] }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label for="mode_jual" class="block text-sm font-semibold text-slate-700 mb-1">Mode jual</label>
-                            <select id="mode_jual" name="mode_jual" class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                                <option value="ecer" @selected(old('mode_jual', 'ecer') === 'ecer')>Eceran (satuan)</option>
-                                <option value="borongan" @selected(old('mode_jual') === 'borongan')>Borongan / paket</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label for="harga" class="block text-sm font-semibold text-slate-700 mb-1">Harga (Rp)</label>
-                            <input type="number" id="harga" name="harga" value="{{ old('harga') }}" min="0" step="500" inputmode="numeric" required placeholder="150000"
-                                   class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                        </div>
-                        <div>
-                            <label for="grade" class="block text-sm font-semibold text-slate-700 mb-1">Kondisi</label>
-                            <select id="grade" name="grade" class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                                @foreach(config('thriftlo.grades') as $grade)
-                                    <option value="{{ $grade }}" @selected(old('grade') === $grade)>{{ $grade }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="image" class="block text-sm font-semibold text-slate-700 mb-1">Foto produk</label>
-                        <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp" required
-                               class="w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                        <p class="text-xs text-slate-400 mt-1">JPG, PNG, atau WEBP, maksimal 5MB. Foto persegi tampil paling bagus di katalog.</p>
-                    </div>
-
-                    <div>
-                        <label for="video_proof_url" class="block text-sm font-semibold text-slate-700 mb-1">Link video proof <span class="font-normal text-slate-400">(opsional)</span></label>
-                        <input type="url" id="video_proof_url" name="video_proof_url" value="{{ old('video_proof_url') }}" placeholder="https://youtube.com/..."
-                               class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                        <p class="text-xs text-slate-400 mt-1">Video kondisi asli barang membuat pembeli lebih percaya.</p>
-                    </div>
-
-                    <div>
-                        <label for="deskripsi" class="block text-sm font-semibold text-slate-700 mb-1">Deskripsi <span class="font-normal text-slate-400">(opsional)</span></label>
-                        <textarea id="deskripsi" name="deskripsi" rows="3" maxlength="2000" placeholder="Ukuran, minus, kelengkapan, dan alasan dijual..."
-                                  class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">{{ old('deskripsi') }}</textarea>
-                    </div>
+                    @include('products.partials.form-fields', ['product' => null, 'sellerInBatam' => $user->isInBatam()])
 
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">
                         Tayangkan ke katalog
