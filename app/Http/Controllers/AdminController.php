@@ -8,21 +8,35 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
-    // Menampilkan Daftar Penjual yang Menunggu Verifikasi KYC
-    public function index()
+    private const STATUSES = ['pending', 'verified', 'rejected'];
+
+    // Menampilkan daftar penjual per status KYC (default: yang menunggu verifikasi)
+    public function index(Request $request)
     {
-        // Ambil semua user dengan role penjual
-        $pendingSellers = User::where('role', 'penjual')->get();
-        return view('admin.sellers', compact('pendingSellers'));
+        $status = in_array($request->query('status'), self::STATUSES, true) ? $request->query('status') : 'pending';
+
+        $counts = User::where('role', 'penjual')
+            ->selectRaw('seller_status, COUNT(*) as total')
+            ->groupBy('seller_status')
+            ->pluck('total', 'seller_status');
+
+        // Antrean menunggu: yang paling lama mendaftar di atas
+        $sellers = User::where('role', 'penjual')
+            ->where('seller_status', $status)
+            ->when($status === 'pending', fn ($q) => $q->oldest(), fn ($q) => $q->latest('updated_at'))
+            ->get();
+
+        return view('admin.sellers', compact('sellers', 'status', 'counts'));
     }
 
     // Aksi untuk Menyetujui (Verify) Penjual
     public function verifySeller($id)
     {
-        $seller = User::findOrFail($id);
+        $seller = $this->findSeller($id);
         $seller->update(['seller_status' => 'verified']);
 
-        return redirect()->back()->with('success', 'Akun penjual ' . $seller->name . ' berhasil diverifikasi!');
+        return redirect()->back()
+            ->with('success', 'Penjual ' . ($seller->nama_toko ?: $seller->name) . ' berhasil diverifikasi dan sudah bisa berjualan.');
     }
 
     // Menampilkan foto KTP penjual dari disk privat (khusus admin)
@@ -46,12 +60,19 @@ class AdminController extends Controller
         return Storage::disk('local')->response($path);
     }
 
-    // Aksi untuk Menolak Penjual
+    // Aksi untuk Menolak Penjual (juga dipakai untuk mencabut verifikasi)
     public function rejectSeller($id)
     {
-        $seller = User::findOrFail($id);
+        $seller = $this->findSeller($id);
         $seller->update(['seller_status' => 'rejected']);
 
-        return redirect()->back()->with('success', 'Akun penjual ditolak.');
+        return redirect()->back()
+            ->with('success', 'Verifikasi penjual ' . ($seller->nama_toko ?: $seller->name) . ' ditolak.');
+    }
+
+    // Aksi verifikasi hanya berlaku untuk akun penjual, bukan pembeli atau admin
+    private function findSeller($id): User
+    {
+        return User::where('role', 'penjual')->findOrFail($id);
     }
 }

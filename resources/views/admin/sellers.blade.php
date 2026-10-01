@@ -1,101 +1,107 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Verifikasi Penjual thriftLO</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="bg-gray-100 font-sans antialiased p-6">
-    <div class="max-w-6xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 p-8">
+<x-market-layout title="Panel Admin">
 
-        <div class="flex justify-between items-center mb-6 border-b pb-4">
-            <div>
-                <h1 class="text-2xl font-black text-gray-800">🛡️ Admin Panel: Verifikasi KYC Penjual</h1>
-                <p class="text-xs text-gray-500">Kelola dan tinjau dokumen pendaftaran toko preloved di Batam.</p>
-            </div>
-            <a href="{{ route('home') }}" class="bg-gray-200 text-gray-700 font-bold px-4 py-2 rounded-xl text-xs hover:bg-gray-300 transition">← Kembali ke Katalog</a>
+    @php
+        $tabs = [
+            'pending'  => 'Menunggu',
+            'verified' => 'Terverifikasi',
+            'rejected' => 'Ditolak',
+        ];
+        $emptyText = [
+            'pending'  => 'Tidak ada penjual yang menunggu verifikasi. Semua sudah ditinjau 🎉',
+            'verified' => 'Belum ada penjual yang terverifikasi.',
+            'rejected' => 'Belum ada penjual yang ditolak.',
+        ];
+    @endphp
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+
+        <div>
+            <h1 class="text-lg sm:text-xl font-bold text-slate-900">Verifikasi penjual</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Cocokkan foto KTP dengan selfie sebelum menyetujui. Penjual baru bisa menayangkan barang setelah disetujui.</p>
         </div>
 
         @if(session('success'))
-            <div class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-bold">
-                {{ session('success') }}
-            </div>
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">✅ {{ session('success') }}</div>
         @endif
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs">
-                <thead>
-                    <tr class="bg-gray-50 text-gray-700 uppercase tracking-wider border-b">
-                        <th class="p-3">Nama & Email</th>
-                        <th class="p-3">Nama Toko & Lokasi</th>
-                        <th class="p-3">Dokumen KTP / Selfie</th>
-                        <th class="p-3">Status KYC</th>
-                        <th class="p-3 text-center">Aksi Admin</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @forelse($pendingSellers as $seller)
-                        <tr class="hover:bg-gray-50">
-                            <td class="p-3">
-                                <span class="font-bold block text-gray-900">{{ $seller->name }}</span>
-                                <span class="text-gray-400 text-[11px]">{{ $seller->email }}</span>
-                                <span class="block text-emerald-600 font-mono text-[10px]">{{ $seller->phone_number }}</span>
-                            </td>
-                            <td class="p-3">
-                                <span class="font-bold text-emerald-800 block">{{ $seller->nama_toko ?? '-' }}</span>
-                                <span class="text-gray-500 text-[11px]">📍 {{ $seller->lokasi_lapak ?? '-' }}</span>
-                            </td>
-                            <td class="p-3 space-y-1.5">
-                                @if($seller->ktp_photo_path)
-                                    <a href="{{ route('admin.sellerKtp', $seller->id) }}" target="_blank" class="block w-fit" title="Buka foto KTP ukuran penuh">
-                                        <img src="{{ route('admin.sellerKtp', $seller->id) }}" alt="Foto KTP {{ $seller->name }}" class="w-28 h-auto rounded-lg border border-gray-200 shadow-sm hover:opacity-80 transition">
-                                    </a>
-                                @else
-                                    <span class="block text-gray-400">KTP: tidak ada file</span>
-                                @endif
+        <!-- Tab status -->
+        <nav class="flex border-b border-slate-200" aria-label="Status verifikasi">
+            @foreach($tabs as $key => $label)
+                <a href="{{ route('admin.sellers', $key === 'pending' ? [] : ['status' => $key]) }}"
+                   class="flex-1 sm:flex-none sm:px-6 text-center py-2.5 text-sm font-semibold border-b-2 -mb-px transition {{ $status === $key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700' }}"
+                   @if($status === $key) aria-current="page" @endif>
+                    {{ $label }}
+                    <span class="ml-1 text-xs font-bold px-1.5 py-0.5 rounded-full {{ $key === 'pending' && ($counts[$key] ?? 0) > 0 ? 'bg-amber-100 text-amber-800' : ($status === $key ? 'bg-emerald-100' : 'bg-slate-100') }}">{{ $counts[$key] ?? 0 }}</span>
+                </a>
+            @endforeach
+        </nav>
 
-                                @if($seller->selfie_path)
-                                    <a href="{{ route('admin.sellerSelfie', $seller->id) }}" target="_blank" class="block w-fit" title="Buka foto selfie ukuran penuh">
-                                        <img src="{{ route('admin.sellerSelfie', $seller->id) }}" alt="Foto selfie {{ $seller->name }}" class="w-28 h-auto rounded-lg border border-gray-200 shadow-sm hover:opacity-80 transition">
+        <!-- Daftar penjual -->
+        <div class="space-y-3">
+            @forelse($sellers as $seller)
+                @php $shopName = $seller->nama_toko ?: $seller->name; @endphp
+                <article class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <div class="p-4 flex items-start gap-3">
+                        <span class="w-11 h-11 shrink-0 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center" aria-hidden="true">
+                            {{ strtoupper(substr($shopName, 0, 1)) }}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <h2 class="font-semibold text-slate-900 truncate">{{ $shopName }}</h2>
+                            <p class="text-sm text-slate-600 truncate">{{ $seller->name }} · {{ $seller->email }}</p>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                📍 {{ $seller->lokasi_lapak ?: '-' }}
+                                @if($seller->phone_number) · 📱 {{ $seller->phone_number }} @endif
+                                · Daftar {{ $seller->created_at->locale('id')->diffForHumans() }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Dokumen KYC -->
+                    <div class="px-4 grid grid-cols-2 gap-3">
+                        @foreach([
+                            ['KTP', $seller->ktp_photo_path, 'admin.sellerKtp'],
+                            ['Selfie dengan KTP', $seller->selfie_path, 'admin.sellerSelfie'],
+                        ] as [$docLabel, $docPath, $docRoute])
+                            <figure>
+                                @if($docPath)
+                                    <a href="{{ route($docRoute, $seller->id) }}" target="_blank" rel="noopener" class="block aspect-[4/3] rounded-lg overflow-hidden border border-slate-200 bg-slate-100 hover:opacity-90" title="Buka {{ $docLabel }} ukuran penuh">
+                                        <img src="{{ route($docRoute, $seller->id) }}" alt="{{ $docLabel }} {{ $seller->name }}" loading="lazy" class="w-full h-full object-cover">
                                     </a>
                                 @else
-                                    <span class="block text-gray-400">Selfie: tidak ada file</span>
+                                    <div class="aspect-[4/3] rounded-lg border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-xs text-slate-400 text-center px-2">Tidak ada file</div>
                                 @endif
-                            </td>
-                            <td class="p-3">
-                                @if($seller->seller_status === 'verified')
-                                    <span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full font-extrabold text-[10px]">VERIFIED</span>
-                                @elseif($seller->seller_status === 'rejected')
-                                    <span class="bg-rose-100 text-rose-800 px-2 py-1 rounded-full font-extrabold text-[10px]">REJECTED</span>
-                                @else
-                                    <span class="bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-extrabold text-[10px]">PENDING</span>
-                                @endif
-                            </td>
-                            <td class="p-3 text-center space-x-2">
-                                <form action="{{ route('admin.verifySeller', $seller->id) }}" method="POST" class="inline-block">
-                                    @csrf
-                                    <button type="submit" class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-[11px]">
-                                        ✔ Setujui
-                                    </button>
-                                </form>
-                                <form action="{{ route('admin.rejectSeller', $seller->id) }}" method="POST" class="inline-block">
-                                    @csrf
-                                    <button type="submit" class="bg-rose-600 text-white font-bold px-3 py-1.5 rounded-lg hover:bg-rose-700 transition text-[11px]">
-                                        ❌ Tolak
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="p-6 text-center text-gray-400">Belum ada penjual yang terdaftar.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                                <figcaption class="mt-1 text-xs text-slate-500">{{ $docLabel }}</figcaption>
+                            </figure>
+                        @endforeach
+                    </div>
+
+                    <!-- Aksi sesuai status -->
+                    <div class="p-4 flex flex-wrap justify-end gap-2">
+                        @if($seller->seller_status !== 'verified')
+                            <form action="{{ route('admin.verifySeller', $seller->id) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="h-10 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">✓ Setujui</button>
+                            </form>
+                        @endif
+                        @if($seller->seller_status === 'pending')
+                            <form action="{{ route('admin.rejectSeller', $seller->id) }}" method="POST" onsubmit="return confirm('Tolak verifikasi {{ addslashes($shopName) }}? Penjual tidak akan bisa menayangkan barang.')">
+                                @csrf
+                                <button type="submit" class="h-10 px-4 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 text-sm font-semibold">Tolak</button>
+                            </form>
+                        @elseif($seller->seller_status === 'verified')
+                            <form action="{{ route('admin.rejectSeller', $seller->id) }}" method="POST" onsubmit="return confirm('Cabut verifikasi {{ addslashes($shopName) }}? Penjual tidak akan bisa menayangkan barang baru.')">
+                                @csrf
+                                <button type="submit" class="h-10 px-4 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 text-sm font-semibold">Cabut verifikasi</button>
+                            </form>
+                        @endif
+                    </div>
+                </article>
+            @empty
+                <div class="text-center py-14 rounded-xl border border-dashed border-slate-300">
+                    <p class="text-4xl mb-2" aria-hidden="true">🛡️</p>
+                    <p class="text-sm text-slate-600">{{ $emptyText[$status] }}</p>
+                </div>
+            @endforelse
         </div>
-
-    </div>
-</body>
-</html>
+    </main>
+</x-market-layout>
