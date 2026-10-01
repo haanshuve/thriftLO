@@ -56,6 +56,27 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_wrong_password_shows_one_friendly_alert_and_keeps_email(): void
+    {
+        $user = User::factory()->create();
+
+        $this->from('/login')->followingRedirects()->post('/login', ['email' => $user->email, 'password' => 'salah'])
+            ->assertSee('Email atau kata sandi belum cocok. Coba cek lagi, ya.')
+            ->assertSee('role="alert"', false)
+            ->assertSee('value="' . $user->email . '"', false)
+            ->assertSee('aria-invalid="true"', false);
+    }
+
+    public function test_login_page_uses_new_design_and_shows_status(): void
+    {
+        $this->withSession(['status' => 'Kata sandimu sudah diperbarui.'])->get('/login')->assertOk()
+            ->assertSee('Selamat datang kembali di thriftLO')
+            ->assertSee('Kata sandimu sudah diperbarui.')
+            ->assertSee('Masuk dengan Google')
+            ->assertSee('images/logo.jpeg.jpeg', false)
+            ->assertDontSee(route('product.store'), false);
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();
