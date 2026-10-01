@@ -137,6 +137,13 @@
 
                                 <p class="mt-1 text-[11px] text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $p->user->locationLabel() }} ·{{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
 
+                                @if($canCod && $isAvailable && !empty($p->shippingOptions()))
+                                    {{-- Penjual Batam yang juga melayani pengiriman: pembeli luar Batam tetap bisa beli --}}
+                                    <a href="{{ $detailUrl }}#pengiriman" class="mt-1.5 self-start inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-sky-700 hover:bg-sky-100" title="Bisa dikirim ke luar Batam">
+                                        🚚 Bisa Kirim
+                                    </a>
+                                @endif
+
                                 <div class="mt-auto pt-2.5 flex gap-1.5">
                                     @if($isOwn)
                                         <span class="w-full text-center text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg py-2">Ini barang kamu</span>

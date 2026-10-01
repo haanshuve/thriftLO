@@ -113,8 +113,50 @@ class ShippingTest extends TestCase
         $product = $this->product($this->batamSeller, 'Jaket Batam', $this->jneAndJnt());
 
         $this->actingAs($this->buyer)->get(route('product.show', $product))->assertOk()
-            ->assertSee('Booking COD')
-            ->assertSee('Pilih Pengiriman');
+            ->assertSee('Mau beli dengan cara apa?')
+            ->assertSee('name="buy_method" value="cod" class="sr-only" checked', false)
+            ->assertSee('name="buy_method" value="ship"', false)
+            ->assertSee('Ongkir mulai Rp12.000')
+            ->assertSee('data-method="cod"', false)
+            ->assertSee('data-method="ship"', false);
+    }
+
+    public function test_method_choice_only_appears_when_both_are_available(): void
+    {
+        $codOnly = $this->product($this->batamSeller, 'Jaket Batam');
+        $shipOnly = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
+
+        $this->actingAs($this->buyer)->get(route('product.show', $codOnly))->assertOk()
+            ->assertDontSee('Mau beli dengan cara apa?');
+        $this->actingAs($this->buyer)->get(route('product.show', $shipOnly))->assertOk()
+            ->assertDontSee('Mau beli dengan cara apa?');
+    }
+
+    public function test_failed_checkout_reopens_shipping_choice(): void
+    {
+        $product = $this->product($this->batamSeller, 'Jaket Batam', $this->jneAndJnt());
+
+        $this->actingAs($this->buyer)->from(route('product.show', $product))->followingRedirects()
+            ->post(route('order.store', $product), ['shipping_option' => 1])
+            ->assertSee('Alamat pengiriman wajib diisi.')
+            ->assertSee('name="buy_method" value="ship" class="sr-only" checked', false);
+    }
+
+    public function test_catalog_card_shows_bisa_kirim_badge_only_for_batam_sellers_with_shipping(): void
+    {
+        $this->product($this->batamSeller, 'Jaket Batam Kirim', $this->jneAndJnt());
+        $this->product($this->batamSeller, 'Tas Batam COD Saja');
+        $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
+
+        $html = $this->actingAs($this->buyer)->get('/')->assertOk()->getContent();
+
+        $both = $this->cardHtml($html, 'Jaket Batam Kirim');
+        $this->assertStringContainsString('Booking COD', $both);
+        $this->assertStringContainsString('Bisa Kirim', $both);
+        $this->assertStringContainsString('#pengiriman', $both);
+
+        $this->assertStringNotContainsString('Bisa Kirim', $this->cardHtml($html, 'Tas Batam COD Saja'));
+        $this->assertStringNotContainsString('Bisa Kirim', $this->cardHtml($html, 'Sepatu Jakarta'));
     }
 
     public function test_cod_booking_is_refused_for_seller_outside_batam(): void

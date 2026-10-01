@@ -79,8 +79,34 @@
                         <a href="{{ route('home') }}" class="font-semibold text-emerald-700 hover:underline">Cari barang lain</a>
                     </div>
                 @else
+                    @php
+                        $bothMethods = $canCod && !empty($shippingOptions);
+                        // Setelah checkout gagal validasi, langsung buka pilihan Kirim lagi
+                        $startWithShipping = $selectedOption !== null || $errors->has('shipping_address') || $errors->has('shipping_option');
+                    @endphp
+
+                    @if($bothMethods)
+                        <!-- Pilih cara beli: COD atau Kirim -->
+                        <fieldset id="buyMethod">
+                            <legend class="text-sm font-semibold text-slate-900 mb-2">Mau beli dengan cara apa?</legend>
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach([
+                                    ['cod', '🤝', 'COD di Batam', 'Ketemuan, cek barang, bayar di tempat', !$startWithShipping],
+                                    ['ship', '🚚', 'Kirim ke alamat', 'Ongkir mulai ' . $rupiah(min(array_column($shippingOptions, 'cost'))), $startWithShipping],
+                                ] as [$value, $icon, $title, $hint, $checked])
+                                    <label class="flex flex-col gap-0.5 rounded-xl border-2 border-slate-200 p-3 cursor-pointer transition hover:border-slate-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/70 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-emerald-500">
+                                        <input type="radio" name="buy_method" value="{{ $value }}" class="sr-only" @checked($checked)>
+                                        <span class="text-xl" aria-hidden="true">{{ $icon }}</span>
+                                        <span class="text-sm font-semibold text-slate-900">{{ $title }}</span>
+                                        <span class="text-xs text-slate-500">{{ $hint }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </fieldset>
+                    @endif
+
                     @if($canCod)
-                        <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                        <div data-method="cod" class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
                             <h2 class="font-semibold text-slate-900">Booking COD</h2>
                             <p class="text-sm text-slate-600 mt-0.5">Ketemuan di Batam, cek barangnya, baru bayar di tempat.</p>
                             @auth
@@ -96,7 +122,7 @@
 
                     @if(!empty($shippingOptions))
                         <!-- Pilih pengiriman -->
-                        <form id="pengiriman" action="{{ route('order.store', $product) }}" method="POST" class="rounded-xl border border-slate-200 p-4 space-y-3 scroll-mt-20">
+                        <form id="pengiriman" data-method="ship" action="{{ route('order.store', $product) }}" method="POST" class="rounded-xl border border-slate-200 p-4 space-y-3 scroll-mt-20">
                             @csrf
                             <div>
                                 <h2 class="font-semibold text-slate-900">Pilih Pengiriman</h2>
@@ -169,6 +195,25 @@
                         <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">
                             Penjual belum mengatur opsi pengiriman untuk barang ini. Tanya penjual lewat chat, ya.
                         </div>
+                    @endif
+
+                    @if($bothMethods)
+                        <script>
+                            (function () {
+                                // Tampilkan hanya bagian cara beli yang dipilih (tanpa JS keduanya tetap tampil)
+                                const radios = document.querySelectorAll('input[name="buy_method"]');
+                                function sync() {
+                                    const picked = document.querySelector('input[name="buy_method"]:checked')?.value;
+                                    document.querySelectorAll('[data-method]').forEach(el => { el.hidden = el.dataset.method !== picked; });
+                                }
+                                // Dari badge "Bisa Kirim" di katalog langsung ke pilihan Kirim
+                                if (location.hash === '#pengiriman') {
+                                    document.querySelector('input[name="buy_method"][value="ship"]').checked = true;
+                                }
+                                radios.forEach(r => r.addEventListener('change', sync));
+                                sync();
+                            })();
+                        </script>
                     @endif
                 @endif
 
