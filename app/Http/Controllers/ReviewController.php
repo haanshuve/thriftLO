@@ -11,9 +11,13 @@ class ReviewController extends Controller
 {
     public function store(Request $request, $bookingId)
     {
-        $request->validate([
+        // Bag "review" + booking_id di form, agar error tampil di kartu tiket yang benar
+        $request->validateWithBag('review', [
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:500',
+        ], [
+            'rating.required' => 'Pilih jumlah bintang terlebih dahulu.',
+            'comment.max' => 'Ulasan maksimal 500 karakter.',
         ]);
 
         $booking = Booking::findOrFail($bookingId);

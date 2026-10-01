@@ -24,7 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Tiket Saya & Review Booking
     Route::get('/my-bookings', function() {
-        $bookings = \App\Models\Booking::with(['product.user'])->where('user_id', Auth::id())->latest()->get();
+        $bookings = \App\Models\Booking::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
         return view('my-bookings', compact('bookings'));
     })->name('bookings.index');
 

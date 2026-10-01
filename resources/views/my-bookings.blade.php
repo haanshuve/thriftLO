@@ -1,141 +1,177 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-bold text-xl text-gray-800 leading-tight flex items-center gap-2">
-                🎟️ Tiket & Riwayat Booking COD Saya
-            </h2>
-            <a href="{{ route('home') }}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition">
-                ← Kembali ke Katalog
-            </a>
-        </div>
-    </x-slot>
+<x-market-layout title="Tiket Saya">
 
-    <div class="py-6">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    @php
+        $activeStatuses = ['Pending', 'Confirmed'];
+        $activeBookings = $bookings->whereIn('status_cod', $activeStatuses);
+        $historyBookings = $bookings->whereNotIn('status_cod', $activeStatuses);
+        $tab = request('tab', $activeBookings->isNotEmpty() || $historyBookings->isEmpty() ? 'aktif' : 'riwayat');
+        $tab = in_array($tab, ['aktif', 'riwayat'], true) ? $tab : 'aktif';
+        $shown = $tab === 'aktif' ? $activeBookings : $historyBookings;
 
-            <!-- Alert Notifikasi  -->
-            @if(session('success'))
-                <div class="bg-emerald-600 text-white p-4 rounded-2xl shadow font-bold text-sm">
-                    🎉 {{ session('success') }}
-                </div>
-            @endif
+        $statusClass = [
+            'Pending'   => 'bg-amber-100 text-amber-800',
+            'Confirmed' => 'bg-sky-100 text-sky-800',
+            'Completed' => 'bg-emerald-100 text-emerald-800',
+            'Cancelled' => 'bg-slate-200 text-slate-600',
+        ];
+        $statusLabel = [
+            'Pending'   => 'Menunggu COD',
+            'Confirmed' => 'Dikonfirmasi penjual',
+            'Completed' => 'Selesai',
+            'Cancelled' => 'Dibatalkan',
+        ];
+        $imgSrc = fn ($p) => filter_var($p->image_url ?? $p->image_path, FILTER_VALIDATE_URL)
+            ? ($p->image_url ?? $p->image_path)
+            : asset('storage/' . ($p->image_url ?? $p->image_path));
+        $firstActiveId = $activeBookings->first()?->id;
+    @endphp
 
-            @if(session('error'))
-                <div class="bg-rose-600 text-white p-4 rounded-2xl shadow font-bold text-sm">
-                    ⚠️ {{ session('error') }}
-                </div>
-            @endif
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
 
-            <!-- Daftar Tiket Booking -->
-            <div class="space-y-4">
-                @forelse($bookings as $b)
-                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between gap-4">
+        <h1 class="text-lg sm:text-xl font-bold text-slate-900">Tiket Saya</h1>
 
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div class="flex items-start gap-4">
-                                <img src="{{ filter_var($b->product->image_url ?? $b->product->image_path, FILTER_VALIDATE_URL) ? ($b->product->image_url ?? $b->product->image_path) : asset('storage/' . ($b->product->image_url ?? $b->product->image_path)) }}" class="w-16 h-16 rounded-2xl object-cover border border-gray-200 shrink-0" onerror="this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=80'">
-                                <div>
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <!-- Disesuaikan menggunakan $b->qr_token sesuai database -->
-                                        <span class="text-[10px] font-mono font-black bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-md border border-blue-200">
-                                            TOKEN: {{ $b->qr_token }}
-                                        </span>
-                                        <span class="text-xs text-gray-400">Penjual: <strong>{{ $b->product->user->name ?? 'Penjual Batam' }}</strong></span>
-                                    </div>
-                                    <h4 class="font-bold text-gray-800 text-base">{{ $b->product->nama_barang ?? $b->product->title }}</h4>
-                                    <p class="text-xs text-gray-500 mt-1">📍 <strong>Lokasi COD:</strong> {{ $b->cod_location }}</p>
-                                    <p class="text-xs text-gray-500">⏰ <strong>Jadwal:</strong> {{ $b->cod_schedule }}</p>
+        @if(session('success'))
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">✅ {{ session('success') }}</div>
+        @endif
+        @if(session('error'))
+            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">⚠️ {{ session('error') }}</div>
+        @endif
+
+        <!-- Tab status -->
+        <nav class="flex border-b border-slate-200" aria-label="Status tiket">
+            @foreach(['aktif' => ['Aktif', $activeBookings->count()], 'riwayat' => ['Riwayat', $historyBookings->count()]] as $key => [$label, $count])
+                <a href="{{ route('bookings.index', ['tab' => $key]) }}"
+                   class="flex-1 sm:flex-none sm:px-6 text-center py-2.5 text-sm font-semibold border-b-2 -mb-px transition {{ $tab === $key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700' }}"
+                   @if($tab === $key) aria-current="page" @endif>
+                    {{ $label }} <span class="ml-1 text-xs font-bold px-1.5 py-0.5 rounded-full {{ $tab === $key ? 'bg-emerald-100' : 'bg-slate-100' }}">{{ $count }}</span>
+                </a>
+            @endforeach
+        </nav>
+
+        <!-- Daftar tiket -->
+        <div class="space-y-3">
+            @forelse($shown as $b)
+                @php
+                    $p = $b->product;
+                    $seller = $p->user;
+                    $isActive = in_array($b->status_cod, $activeStatuses, true);
+                    $reviewErrors = old('booking_id') == $b->id ? $errors->review : null;
+                @endphp
+
+                <article class="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <!-- Penjual & status -->
+                    <div class="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
+                        <p class="text-sm font-semibold text-slate-700 truncate">🏬 {{ $seller->nama_toko ?? $seller->name ?? 'Penjual' }}</p>
+                        <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $statusClass[$b->status_cod] ?? 'bg-slate-100 text-slate-600' }}">
+                            {{ $statusLabel[$b->status_cod] ?? $b->status_cod }}
+                        </span>
+                    </div>
+
+                    <!-- Barang & info COD -->
+                    <div class="p-4 flex gap-3">
+                        <img src="{{ $imgSrc($p) }}" alt="" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover bg-slate-100 shrink-0"
+                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=200&q=70'">
+                        <div class="flex-1 min-w-0">
+                            <h2 class="text-sm sm:text-base text-slate-900 leading-snug line-clamp-2">{{ $p->title }}</h2>
+                            <p class="mt-0.5 font-bold text-emerald-700 tabular-nums">Rp{{ number_format($p->price, 0, ',', '.') }}</p>
+                            <p class="mt-1 text-xs text-slate-500">📍 {{ $b->cod_location }}</p>
+                            <p class="text-xs text-slate-500">⏰ {{ \Illuminate\Support\Carbon::parse($b->cod_schedule)->format('d M Y, H:i') }}</p>
+                        </div>
+                    </div>
+
+                    @if($isActive)
+                        <!-- QR untuk COD -->
+                        <details class="group border-t border-slate-100" @if($b->id === $firstActiveId) open @endif>
+                            <summary class="list-none cursor-pointer select-none px-4 py-3 flex items-center justify-between text-sm font-semibold text-emerald-700 hover:bg-emerald-50/60">
+                                <span>Tampilkan QR untuk COD</span>
+                                <svg class="w-4 h-4 transition group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            </summary>
+                            <div class="px-4 pb-4 flex flex-col items-center text-center">
+                                <div class="w-48 h-48 p-2 bg-white border border-slate-200 rounded-xl [&>svg]:w-full [&>svg]:h-full" role="img" aria-label="QR code token {{ $b->qr_token }}">
+                                    {!! $b->qrCodeSvg() !!}
                                 </div>
+                                <p class="mt-3 font-mono text-lg font-bold tracking-widest text-slate-900">{{ $b->qr_token }}</p>
+                                <button type="button" data-token="{{ $b->qr_token }}" onclick="copyToken(this)"
+                                        class="mt-1 text-xs font-semibold text-emerald-700 hover:underline">Salin token</button>
+                                <p class="mt-2 text-xs text-slate-500 max-w-xs">Tunjukkan QR atau token ini ke penjual saat bertemu. Jangan bagikan sebelum barang kamu cek.</p>
                             </div>
+                        </details>
 
-                            <div class="flex flex-col items-end gap-2 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-gray-100">
-                                <span class="text-base font-extrabold text-emerald-700">
-                                    Rp {{ number_format($b->product->harga ?? $b->product->price, 0, ',', '.') }}
-                                </span>
-                                @if($b->status_cod == 'Completed')
-                                    <span class="bg-emerald-100 text-emerald-800 font-extrabold text-xs px-3 py-1 rounded-xl border border-emerald-200">
-                                        ✓ Selesai / Terverifikasi
-                                    </span>
-                                @else
-                                    <span class="bg-amber-100 text-amber-800 font-extrabold text-xs px-3 py-1 rounded-xl border border-amber-200">
-                                        ⏳ Menunggu Pertemuan untuk COD
-                                    </span>
-                                @endif
-                            </div>
+                        <div class="px-4 pb-4 pt-0">
+                            <a href="{{ route('chat.index', ['user_id' => $p->user_id, 'product_id' => $p->id]) }}"
+                               class="flex items-center justify-center gap-2 h-10 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
+                                Chat Penjual
+                            </a>
                         </div>
 
-                        <!-- TAMPILAN KOTAK QR CODE -->
-                        @if($b->status_cod !== 'Completed')
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center max-w-xs mx-auto w-full my-2">
-                                <p class="text-[10px] text-slate-500 font-extrabold uppercase mb-2">Tunjukkan Token / QR ini saat bertemu Penjual:</p>
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data={{ $b->qr_token }}" alt="QR Code" class="mx-auto border p-2 rounded-lg bg-white shadow-xs">
-                                <span class="block font-mono font-black text-xs text-slate-800 mt-2 tracking-widest">{{ $b->qr_token }}</span>
-                            </div>
-                        @endif
-
-                        <!-- MODUL REVIEW & RATING BINTANG  -->
-                        @if($b->status_cod == 'Completed')
-                            @php
-                                $review = \App\Models\Review::where('booking_id', $b->id)->first();
-                            @endphp
-
-                            <div class="border-t border-gray-100 pt-3 mt-2">
-                                @if(!$review)
-                                    <!-- Form Beri Rating Bintang 1-5 -->
-                                    <form action="{{ route('review.store', $b->id) }}" method="POST" class="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-3">
-                                        @csrf
-                                        <div>
-                                            <h5 class="text-xs font-black text-amber-900 mb-0.5">⭐ Beri Rating & Ulasan Penjual</h5>
-                                            <p class="text-[10px] text-amber-700">Bagaimana kondisi barang preloved dan pengalaman COD kamu?</p>
-                                        </div>
-
-                                        <div class="flex flex-col sm:flex-row gap-2">
-                                            <select name="rating" required class="bg-white border border-amber-300 text-xs font-bold rounded-xl p-2.5 focus:ring-amber-500">
-                                                <option value="5">⭐⭐⭐⭐⭐ (5.0 - Sangat Puas)</option>
-                                                <option value="4">⭐⭐⭐⭐ (4.0 - Bagus)</option>
-                                                <option value="3">⭐⭐⭐ (3.0 - Cukup)</option>
-                                                <option value="2">⭐⭐ (2.0 - Kecewa)</option>
-                                                <option value="1">⭐ (1.0 - Sangat Buruk)</option>
-                                            </select>
-                                            <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-amber-950 font-black text-xs px-4 py-2.5 rounded-xl transition shadow-sm shrink-0">
-                                                Kirim Ulasan Bintang
-                                            </button>
-                                        </div>
-
-                                        <textarea name="comment" rows="2" placeholder="Tulis ulasan singkat kondisi barang..." class="w-full text-xs p-2.5 border border-amber-200 rounded-xl bg-white focus:ring-amber-500"></textarea>
-                                    </form>
-                                @else
-                                    <!-- Kotak Menampilkan Ulasan yang Sudah Dikirim -->
-                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex flex-col gap-1">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-1 text-amber-500 font-bold">
-                                                @for($s = 1; $s <= 5; $s++)
-                                                    {{ $s <= $review->rating ? '★' : '☆' }}
-                                                @endfor
-                                                <span class="text-slate-700 font-black ml-1 text-xs">({{ $review->rating }}/5.0)</span>
-                                            </div>
-                                            <span class="text-[10px] text-slate-400 font-medium">Ulasan Anda Terkirim</span>
-                                        </div>
-                                        @if($review->comment)
-                                            <p class="text-slate-600 text-[11px] italic mt-0.5">"{{ $review->comment }}"</p>
-                                        @endif
-                                    </div>
+                    @elseif($b->status_cod === 'Completed')
+                        <!-- Ulasan -->
+                        <div class="border-t border-slate-100 px-4 py-3">
+                            @if($b->review)
+                                <div class="flex items-center gap-2">
+                                    <span class="text-amber-400 text-lg leading-none" aria-label="{{ $b->review->rating }} dari 5 bintang">
+                                        {{ str_repeat('★', $b->review->rating) }}<span class="text-slate-300">{{ str_repeat('★', 5 - $b->review->rating) }}</span>
+                                    </span>
+                                    <span class="text-xs text-slate-400">Ulasanmu</span>
+                                </div>
+                                @if($b->review->comment)
+                                    <p class="mt-1 text-sm text-slate-600">“{{ $b->review->comment }}”</p>
                                 @endif
-                            </div>
-                        @endif
-
-                    </div>
-                @empty
-                    <div class="bg-white p-12 rounded-2xl text-center border border-dashed border-gray-200">
-                        <span class="text-4xl block mb-2">🎟️</span>
-                        <p class="text-sm text-gray-500 font-semibold">Kamu belum memiliki riwayat booking barang.</p>
-                        <a href="{{ route('home') }}" class="inline-block mt-3 text-xs text-emerald-600 font-bold hover:underline">
-                            Cari Barang Preloved Sekarang →
-                        </a>
-                    </div>
-                @endforelse
-            </div>
-
+                            @else
+                                <form action="{{ route('review.store', $b->id) }}" method="POST" class="space-y-2">
+                                    @csrf
+                                    <input type="hidden" name="booking_id" value="{{ $b->id }}">
+                                    <fieldset>
+                                        <legend class="text-sm font-semibold text-slate-800">Beri ulasan untuk penjual</legend>
+                                        <div class="mt-1 flex flex-row-reverse justify-end gap-1">
+                                            @for($i = 5; $i >= 1; $i--)
+                                                <input type="radio" id="rating-{{ $b->id }}-{{ $i }}" name="rating" value="{{ $i }}" class="sr-only [&:checked~label]:text-amber-400 [&:focus-visible+label]:ring-2 [&:focus-visible+label]:ring-emerald-500"
+                                                       @checked($reviewErrors !== null && (int) old('rating') === $i) @if($i === 5) required @endif>
+                                                <label for="rating-{{ $b->id }}-{{ $i }}" class="text-3xl leading-none text-slate-300 cursor-pointer rounded hover:text-amber-400 [&:hover~label]:text-amber-400">
+                                                    ★<span class="sr-only">{{ $i }} bintang</span>
+                                                </label>
+                                            @endfor
+                                        </div>
+                                    </fieldset>
+                                    <label for="comment-{{ $b->id }}" class="sr-only">Komentar ulasan</label>
+                                    <textarea id="comment-{{ $b->id }}" name="comment" rows="2" maxlength="500" placeholder="Bagaimana kondisi barang dan pengalaman COD-nya? (opsional)"
+                                              class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">{{ $reviewErrors !== null ? old('comment') : '' }}</textarea>
+                                    @if($reviewErrors?->any())
+                                        <p class="text-sm text-rose-600" role="alert">{{ $reviewErrors->first() }}</p>
+                                    @endif
+                                    <button type="submit" class="w-full sm:w-auto px-5 h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Kirim ulasan</button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
+                </article>
+            @empty
+                <div class="text-center py-14 rounded-xl border border-dashed border-slate-300">
+                    <p class="text-4xl mb-2" aria-hidden="true">🎟️</p>
+                    @if($tab === 'aktif')
+                        <p class="font-bold text-slate-800">Belum ada tiket aktif</p>
+                        <p class="text-sm text-slate-500 mt-1">Booking barang di katalog untuk mendapatkan token QR COD.</p>
+                    @else
+                        <p class="font-bold text-slate-800">Belum ada riwayat transaksi</p>
+                        <p class="text-sm text-slate-500 mt-1">Transaksi COD yang sudah selesai akan muncul di sini.</p>
+                    @endif
+                    <a href="{{ route('home') }}" class="inline-block mt-4 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Cari barang preloved</a>
+                </div>
+            @endforelse
         </div>
-    </div>
-</x-app-layout>
+    </main>
+
+    <script>
+        function copyToken(button) {
+            const token = button.dataset.token;
+            const done = () => {
+                button.textContent = 'Tersalin ✓';
+                setTimeout(() => { button.textContent = 'Salin token'; }, 2000);
+            };
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(token).then(done).catch(() => {});
+            }
+        }
+    </script>
+</x-market-layout>
