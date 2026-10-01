@@ -53,6 +53,44 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'subscription_expires_at' => 'datetime',
         ];
+    }
+
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
+
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscription_expires_at !== null && $this->subscription_expires_at->isFuture();
+    }
+
+    // Sisa hari langganan, dibulatkan ke atas (sisa 2 jam = 1 hari)
+    public function subscriptionDaysLeft(): int
+    {
+        return $this->hasActiveSubscription()
+            ? (int) ceil(now()->diffInDays($this->subscription_expires_at))
+            : 0;
+    }
+
+    // Perpanjang dari tanggal habis kalau masih aktif, supaya sisa hari tidak hangus
+    public function extendSubscription(int $days): void
+    {
+        $from = $this->hasActiveSubscription() ? $this->subscription_expires_at : now();
+
+        $this->forceFill(['subscription_expires_at' => $from->copy()->addDays($days)])->save();
+    }
+
+    public function activeProductCount(): int
+    {
+        return $this->products()->active()->count();
+    }
+
+    public function canListMoreProducts(): bool
+    {
+        return $this->hasActiveSubscription()
+            || $this->activeProductCount() < (int) config('thriftlo.subscription.free_product_limit');
     }
 }

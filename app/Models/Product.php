@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,6 +31,32 @@ class Product extends Model
             if (empty($product->image_path) && !empty($product->image_url)) {
                 $product->image_path = $product->image_url;
             }
+        });
+    }
+
+    // Status produk yang masih tayang di katalog dan dihitung ke kuota gratis
+    public const ACTIVE_STATUSES = ['Available', 'Booked'];
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::ACTIVE_STATUSES);
+    }
+
+    /**
+     * Produk yang tampil di katalog: semua produk aktif penjual berlangganan, atau
+     * hanya N produk aktif pertama (urut upload) milik penjual tanpa langganan.
+     * Sisanya disembunyikan, bukan dihapus, dan tampil lagi begitu penjual berlangganan.
+     */
+    public function scopeVisibleInCatalog(Builder $query): Builder
+    {
+        $limit = (int) config('thriftlo.subscription.free_product_limit');
+
+        return $query->active()->where(function (Builder $q) use ($limit) {
+            $q->whereHas('user', fn (Builder $u) => $u->where('subscription_expires_at', '>', now()))
+                ->orWhereRaw(
+                    '(select count(*) from products as earlier where earlier.user_id = products.user_id and earlier.status in (?, ?) and earlier.id < products.id) < ?',
+                    [...self::ACTIVE_STATUSES, $limit]
+                );
         });
     }
 

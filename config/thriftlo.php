@@ -24,4 +24,17 @@ return [
         'Grade C (Need Repair)',
     ],
 
+    /*
+    | Langganan penjual. Tanpa langganan, penjual hanya bisa menayangkan sejumlah
+    | free_product_limit produk aktif (Available + Booked).
+    | simulate_payment: tombol "Bayar Sekarang" langsung mengaktifkan langganan tanpa
+    | payment gateway. Default mati di production sampai Midtrans terpasang.
+    */
+    'subscription' => [
+        'free_product_limit' => 5,
+        'price'              => 5000,
+        'days'               => 30,
+        'simulate_payment'   => (bool) env('SUBSCRIPTION_SIMULATION', env('APP_ENV') !== 'production'),
+    ],
+
 ];

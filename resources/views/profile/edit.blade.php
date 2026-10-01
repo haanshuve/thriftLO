@@ -43,6 +43,23 @@
             </div>
         </section>
 
+        <!-- Langganan penjual -->
+        @if($user->role === 'penjual' && $user->seller_status === 'verified')
+            <a href="{{ route('subscription.show') }}" class="flex items-center gap-3 rounded-xl border px-4 py-3 hover:shadow-sm transition {{ $user->hasActiveSubscription() ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200' }}">
+                <span class="text-2xl" aria-hidden="true">{{ $user->hasActiveSubscription() ? '⭐' : '📦' }}</span>
+                <div class="flex-1 min-w-0 text-sm">
+                    @if($user->hasActiveSubscription())
+                        <p class="font-semibold text-slate-900">Langganan Unlimited · sisa {{ $user->subscriptionDaysLeft() }} hari</p>
+                        <p class="text-slate-600">Aktif sampai {{ $user->subscription_expires_at->locale('id')->translatedFormat('j F Y, H:i') }} WIB</p>
+                    @else
+                        <p class="font-semibold text-slate-900">Paket Gratis · maks. {{ config('thriftlo.subscription.free_product_limit') }} produk aktif</p>
+                        <p class="text-slate-500">Upgrade ke Unlimited Rp5.000/bulan</p>
+                    @endif
+                </div>
+                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+        @endif
+
         <!-- Menu pintas -->
         <nav class="rounded-xl border border-slate-200 divide-y divide-slate-100" aria-label="Menu akun">
             @foreach($menu as [$label, $url, $icon])

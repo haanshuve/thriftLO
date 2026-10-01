@@ -13,7 +13,8 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('user')->whereIn('status', ['Available', 'Booked']);
+        // Produk di atas kuota gratis milik penjual tanpa langganan tidak ditampilkan
+        $query = Product::with('user')->visibleInCatalog();
 
         // Fitur Pencarian (Search) berdasarkan Judul atau Deskripsi Barang
         if ($request->has('search') && !empty($request->search)) {
@@ -49,6 +50,10 @@ class ProductController extends Controller
         $user = Auth::user();
         if ($user->role !== 'penjual' || $user->seller_status !== 'verified') {
             return redirect()->route('dashboard')->with('error', 'Hanya penjual terverifikasi yang bisa menayangkan barang.');
+        }
+
+        if (!$user->canListMoreProducts()) {
+            return redirect()->route('subscription.show')->with('limit_reached', true);
         }
 
         $request->validateWithBag('product', [
@@ -114,6 +119,11 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Yah, barang ini keburu di-booking orang lain. Cek barang lain yang mirip, yuk!');
         }
 
+        // Barang yang disembunyikan karena kuota penjual habis tidak bisa di-booking lewat URL langsung
+        if (!Product::visibleInCatalog()->whereKey($product->id)->exists()) {
+            return redirect()->back()->with('error', 'Barang ini sedang tidak ditayangkan penjualnya.');
+        }
+
         $qrToken = 'TL-' . strtoupper(Str::random(8));
 
         // Menyimpan booking dengan struktur kolom database cod_location & cod_schedule
@@ -140,7 +150,13 @@ class ProductController extends Controller
                 $q->where('user_id', $user->id);
             })->latest()->get();
 
-        return view('dashboard', compact('myProducts', 'myBookings'));
+        // Produk aktif di atas kuota gratis yang sedang disembunyikan dari katalog
+        $hiddenProductIds = $user->hasActiveSubscription()
+            ? []
+            : $myProducts->whereIn('status', Product::ACTIVE_STATUSES)->sortBy('id')
+                ->slice((int) config('thriftlo.subscription.free_product_limit'))->pluck('id')->all();
+
+        return view('dashboard', compact('myProducts', 'myBookings', 'hiddenProductIds'));
     }
 
     public function verifyQrCode(Request $request)

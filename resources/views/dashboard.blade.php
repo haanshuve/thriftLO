@@ -29,6 +29,13 @@
             ? ($p->image_url ?? $p->image_path)
             : asset('storage/' . ($p->image_url ?? $p->image_path));
         $openUploadOnLoad = $errors->product->any();
+
+        // Kuota produk gratis & langganan
+        $hiddenProductIds = $hiddenProductIds ?? [];
+        $freeLimit = (int) config('thriftlo.subscription.free_product_limit');
+        $isSubscribed = $user->hasActiveSubscription();
+        $activeCount = $countAvailable + $countBooked;
+        $atLimit = !$isSubscribed && $activeCount >= $freeLimit;
     @endphp
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-5">
@@ -63,7 +70,12 @@
                 </div>
             </div>
 
-            @if($isVerified)
+            @if($isVerified && $atLimit)
+                {{-- Kuota gratis penuh: arahkan ke halaman langganan, bukan form upload --}}
+                <a href="{{ route('subscription.show') }}" class="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
+                    <span aria-hidden="true" class="text-lg leading-none">+</span> Jual Barang
+                </a>
+            @elseif($isVerified)
                 <button type="button" onclick="openUploadModal()" class="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
                     <span aria-hidden="true" class="text-lg leading-none">+</span> Jual Barang
                 </button>
@@ -93,6 +105,28 @@
                 <p class="font-semibold">Verifikasi penjual ditolak</p>
                 <p class="mt-0.5">Dokumen KYC kamu belum bisa disetujui. Hubungi admin thriftLO lewat chat untuk informasi lebih lanjut.</p>
             </div>
+        @endif
+
+        <!-- Paket & kuota produk -->
+        @if($isVerified)
+            <a href="{{ route('subscription.show') }}" class="flex items-center gap-3 rounded-xl border px-4 py-3 transition hover:shadow-sm {{ $isSubscribed ? 'border-emerald-200 bg-emerald-50/60' : ($atLimit ? 'border-amber-200 bg-amber-50' : 'border-slate-200') }}">
+                <span class="text-2xl" aria-hidden="true">{{ $isSubscribed ? '⭐' : '📦' }}</span>
+                <div class="flex-1 min-w-0 text-sm">
+                    @if($isSubscribed)
+                        <p class="font-semibold text-slate-900">Langganan Unlimited · sisa {{ $user->subscriptionDaysLeft() }} hari</p>
+                        <p class="text-slate-600">Aktif sampai {{ $user->subscription_expires_at->locale('id')->translatedFormat('j F Y') }}. Tayangkan produk tanpa batas.</p>
+                    @elseif(count($hiddenProductIds) > 0)
+                        <p class="font-semibold text-amber-900">{{ count($hiddenProductIds) }} produk disembunyikan dari katalog</p>
+                        <p class="text-amber-800">Langgananmu sudah habis. Berlangganan lagi supaya semua produk tampil.</p>
+                    @else
+                        <p class="font-semibold {{ $atLimit ? 'text-amber-900' : 'text-slate-900' }}">Paket Gratis · {{ $activeCount }}/{{ $freeLimit }} produk aktif</p>
+                        <p class="{{ $atLimit ? 'text-amber-800' : 'text-slate-500' }}">
+                            {{ $atLimit ? 'Kuota penuh. Berlangganan Rp5.000/bulan untuk produk tanpa batas.' : 'Butuh lebih dari ' . $freeLimit . ' produk? Lihat paket Unlimited.' }}
+                        </p>
+                    @endif
+                </div>
+                <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
         @endif
 
         <!-- Statistik -->
@@ -183,6 +217,9 @@
                                  class="w-full h-full object-cover {{ $status === 'available' ? '' : 'opacity-60' }}"
                                  onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=500&q=80'">
                             <span class="absolute top-2 left-2 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-sm {{ $statusClass }}">{{ $statusText }}</span>
+                            @if(in_array($item->id, $hiddenProductIds, true))
+                                <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-xs font-semibold text-center py-1.5">🙈 Disembunyikan</span>
+                            @endif
                             @if($item->mode_jual === 'borongan')
                                 <span class="absolute top-2 right-2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/90 text-slate-700 shadow-sm">📦 Borongan</span>
                             @endif

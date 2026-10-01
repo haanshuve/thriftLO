@@ -8,6 +8,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\SubscriptionController;
 
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
@@ -17,6 +18,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [ProductController::class, 'sellerDashboard'])->name('dashboard');
     Route::post('/seller/product/store', [ProductController::class, 'store'])->name('product.store');
     Route::delete('/seller/product/{id}', [ProductController::class, 'destroy'])->name('product.destroy');
+
+    // Langganan penjual (Rp5.000/bulan untuk produk unlimited)
+    Route::get('/seller/langganan', [SubscriptionController::class, 'show'])->name('subscription.show');
+    Route::post('/seller/langganan/bayar', [SubscriptionController::class, 'pay'])->name('subscription.pay');
 
     // Booking & Secure COD Smart QR Code
     Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
