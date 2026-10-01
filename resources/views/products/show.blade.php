@@ -100,7 +100,7 @@
                             @csrf
                             <div>
                                 <h2 class="font-semibold text-slate-900">Pilih Pengiriman</h2>
-                                <p class="text-sm text-slate-500 mt-0.5">Dikirim dari {{ $seller->isInBatam() ? $seller->locationLabel() : 'luar Batam' }}.</p>
+                                <p class="text-sm text-slate-500 mt-0.5">Dikirim dari {{ $seller->isInBatam() || $seller->kota_lapak ? $seller->locationLabel() : 'luar Batam' }}.</p>
                             </div>
 
                             <fieldset class="space-y-2">

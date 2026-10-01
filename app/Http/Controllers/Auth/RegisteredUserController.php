@@ -35,6 +35,7 @@ class RegisteredUserController extends Controller
         if ($request->role === 'penjual') {
             $rules['nama_toko'] = ['required', 'string', 'max:255'];
             $rules['lokasi_lapak'] = ['required', Rule::in(SellerLocation::options())];
+            $rules['kota_lapak'] = ['nullable', 'required_if:lokasi_lapak,' . SellerLocation::OUTSIDE_BATAM, 'string', 'max:100'];
             // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
             $rules['ktp_photo'] = ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'];
             $rules['selfie_ktp'] = ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'];
@@ -43,6 +44,8 @@ class RegisteredUserController extends Controller
         $request->validate($rules, [
             'lokasi_lapak.required' => 'Pilih lokasi lapak.',
             'lokasi_lapak.in'       => 'Pilih lokasi lapak dari daftar yang tersedia.',
+            'kota_lapak.required_if' => 'Tulis kota asal lapakmu (mis. Surabaya) supaya pembeli tahu barang dikirim dari mana.',
+            'kota_lapak.max'         => 'Nama kota maksimal 100 karakter.',
             'ktp_photo.required'  => 'Foto KTP wajib diunggah.',
             'ktp_photo.image'     => 'Foto KTP harus berupa gambar (JPG, PNG, atau WEBP).',
             'ktp_photo.mimes'     => 'Foto KTP harus berformat JPG, PNG, atau WEBP.',
@@ -75,6 +78,8 @@ class RegisteredUserController extends Controller
             'role' => $request->role,
             'nama_toko' => $request->role === 'penjual' ? $request->nama_toko : null,
             'lokasi_lapak' => $request->role === 'penjual' ? $request->lokasi_lapak : null,
+            // Kota hanya disimpan untuk penjual Luar Batam
+            'kota_lapak' => $request->role === 'penjual' && $request->lokasi_lapak === SellerLocation::OUTSIDE_BATAM ? trim($request->kota_lapak) : null,
             'ktp_number' => $request->role === 'penjual' ? 'VERIFIED-KYC' : null, // Mengisi placeholder ktp_number
             'ktp_photo_path' => $ktpPath,
             'selfie_path' => $selfiePath,

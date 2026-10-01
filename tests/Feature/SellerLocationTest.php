@@ -106,6 +106,56 @@ class SellerLocationTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'rina@example.com']);
     }
 
+    public function test_luar_batam_registration_requires_city(): void
+    {
+        $this->registerSeller('Luar Batam')->assertSessionHasErrors('kota_lapak');
+        $this->assertDatabaseMissing('users', ['email' => 'rina@example.com']);
+
+        Storage::fake('local');
+        $this->post('/register', [
+            'name' => 'Rina', 'phone_number' => '081234567890', 'email' => 'rina@example.com',
+            'password' => 'password', 'password_confirmation' => 'password', 'role' => 'penjual',
+            'nama_toko' => 'Rina Thrift', 'lokasi_lapak' => 'Luar Batam', 'kota_lapak' => ' Surabaya ',
+            'ktp_photo' => UploadedFile::fake()->image('ktp.jpg'), 'selfie_ktp' => UploadedFile::fake()->image('selfie.jpg'),
+        ])->assertSessionHasNoErrors();
+
+        $seller = User::where('email', 'rina@example.com')->first();
+        $this->assertSame('Surabaya', $seller->kota_lapak);
+        $this->assertSame('Surabaya', $seller->locationLabel());
+        $this->assertFalse($seller->isInBatam());
+    }
+
+    public function test_city_is_ignored_for_batam_sellers(): void
+    {
+        $this->registerSeller('Nagoya');
+        $this->assertNull(User::where('email', 'rina@example.com')->first()->kota_lapak);
+
+        $seller = User::factory()->create(['role' => 'penjual', 'nama_toko' => 'Toko', 'lokasi_lapak' => 'Luar Batam', 'kota_lapak' => 'Medan']);
+        $this->actingAs($seller)->patch('/profile', [
+            'name' => $seller->name, 'email' => $seller->email, 'nama_toko' => 'Toko', 'lokasi_lapak' => 'Sekupang', 'kota_lapak' => 'Medan',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNull($seller->fresh()->kota_lapak);
+        $this->assertSame('Sekupang, Batam', $seller->fresh()->locationLabel());
+    }
+
+    public function test_city_migration_keeps_original_text_before_location_is_normalized(): void
+    {
+        $surabaya = User::factory()->create(['role' => 'penjual', 'lokasi_lapak' => 'Surabaya']);
+        $botania = User::factory()->create(['role' => 'penjual', 'lokasi_lapak' => 'botania']);
+
+        // Urutan seperti di server yang belum menjalankan kedua migrasi
+        $cityMigration = require database_path('migrations/2026_10_02_000003_add_kota_lapak_to_users_table.php');
+        $cityMigration->down();
+        $cityMigration->up();
+        (require database_path('migrations/2026_10_02_000004_normalize_seller_locations.php'))->up();
+
+        $this->assertSame('Luar Batam', $surabaya->fresh()->lokasi_lapak);
+        $this->assertSame('Surabaya', $surabaya->fresh()->kota_lapak);
+        $this->assertSame('Botania', $botania->fresh()->lokasi_lapak);
+        $this->assertNull($botania->fresh()->kota_lapak);
+    }
+
     public function test_seller_changes_location_in_profile_and_cod_follows(): void
     {
         $seller = User::factory()->create(['role' => 'penjual', 'seller_status' => 'verified', 'nama_toko' => 'Rina Thrift', 'lokasi_lapak' => 'Nagoya']);
@@ -114,9 +164,10 @@ class SellerLocationTest extends TestCase
             ->assertSee('<option value="Nagoya" selected', false);
 
         $this->actingAs($seller)->patch('/profile', [
-            'name' => $seller->name, 'email' => $seller->email, 'nama_toko' => 'Rina Thrift', 'lokasi_lapak' => 'Luar Batam',
+            'name' => $seller->name, 'email' => $seller->email, 'nama_toko' => 'Rina Thrift', 'lokasi_lapak' => 'Luar Batam', 'kota_lapak' => 'Pekanbaru',
         ])->assertSessionHasNoErrors();
         $this->assertFalse($seller->fresh()->isInBatam());
+        $this->assertSame('Pekanbaru', $seller->fresh()->locationLabel());
 
         $this->actingAs($seller)->patch('/profile', [
             'name' => $seller->name, 'email' => $seller->email, 'nama_toko' => 'Rina Thrift', 'lokasi_lapak' => 'Medan',

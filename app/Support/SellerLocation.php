@@ -34,11 +34,15 @@ class SellerLocation
         return in_array($location, config('thriftlo.batam_areas'), true);
     }
 
-    // "Nagoya" -> "Nagoya, Batam"; "Batam Center" dan "Batam lainnya" sudah jelas Batam
-    public static function label(?string $location): string
+    // "Nagoya" -> "Nagoya, Batam"; "Batam Center" dan "Batam lainnya" sudah jelas Batam; Luar Batam -> nama kotanya
+    public static function label(?string $location, ?string $city = null): string
     {
         if (!$location) {
             return 'Lokasi belum diisi';
+        }
+
+        if ($location === self::OUTSIDE_BATAM && trim((string) $city) !== '') {
+            return trim($city);
         }
 
         if ($location === self::OTHER_BATAM) {

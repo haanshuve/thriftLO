@@ -66,6 +66,20 @@
                         <option value="{{ \App\Support\SellerLocation::OUTSIDE_BATAM }}" @selected($currentLocation === \App\Support\SellerLocation::OUTSIDE_BATAM)>Luar Batam (hanya pengiriman)</option>
                     </select>
                     <p class="mt-1 text-xs text-slate-500">Lapak di Batam bisa COD. Luar Batam hanya bisa lewat pengiriman.</p>
+                    @php $outside = $currentLocation === \App\Support\SellerLocation::OUTSIDE_BATAM; @endphp
+                    <div id="kotaLapakField" class="mt-3 {{ $outside ? '' : 'hidden' }}">
+                        <label for="kota_lapak" class="block text-sm font-semibold text-slate-700 mb-1">Kota asal lapak</label>
+                        <input id="kota_lapak" name="kota_lapak" type="text" value="{{ old('kota_lapak', $user->kota_lapak) }}" maxlength="100" placeholder="Contoh: Surabaya" @if($outside) required @endif class="{{ $input }}">
+                        <x-input-error class="mt-1" :messages="$errors->get('kota_lapak')" />
+                    </div>
+                    <script>
+                        // Kolom kota hanya untuk lapak Luar Batam
+                        document.getElementById('lokasi_lapak').addEventListener('change', function () {
+                            const outside = this.value === @json(\App\Support\SellerLocation::OUTSIDE_BATAM);
+                            document.getElementById('kotaLapakField').classList.toggle('hidden', !outside);
+                            document.getElementById('kota_lapak').required = outside;
+                        });
+                    </script>
                     <x-input-error class="mt-1" :messages="$errors->get('lokasi_lapak')" />
                 </div>
             </div>

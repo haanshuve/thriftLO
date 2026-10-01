@@ -120,6 +120,24 @@
                                 <option value="{{ \App\Support\SellerLocation::OUTSIDE_BATAM }}" @selected(old('lokasi_lapak') === \App\Support\SellerLocation::OUTSIDE_BATAM)>Luar Batam (hanya pengiriman)</option>
                             </select>
                             <p class="text-[10px] text-gray-500 mt-1">Lapak di Batam bisa COD. Luar Batam hanya bisa lewat pengiriman.</p>
+                            @php $outside = old('lokasi_lapak') === \App\Support\SellerLocation::OUTSIDE_BATAM; @endphp
+                            <div id="kotaLapakField" class="mt-2 {{ $outside ? '' : 'hidden' }}">
+                                <label for="kota_lapak" class="block text-xs font-extrabold text-gray-700 mb-1">Kota asal lapak</label>
+                                <input type="text" id="kota_lapak" name="kota_lapak" value="{{ old('kota_lapak') }}" maxlength="100" placeholder="Contoh: Surabaya" @if($outside) required @endif
+                                       class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
+                                @error('kota_lapak')
+                                    <p class="text-[11px] text-rose-600 mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <script>
+                                // Kolom kota hanya untuk lapak Luar Batam
+                                document.getElementById('lokasi_lapak').addEventListener('change', function () {
+                                    const outside = this.value === @json(\App\Support\SellerLocation::OUTSIDE_BATAM);
+                                    document.getElementById('kotaLapakField').classList.toggle('hidden', !outside);
+                                    document.getElementById('kota_lapak').required = outside;
+                                    if (outside) document.getElementById('kota_lapak').focus();
+                                });
+                            </script>
                         </div>
                     </div>
 
@@ -178,6 +196,10 @@
                     if(el) el.removeAttribute('required');
                 });
             }
+
+            // Kota wajib hanya untuk penjual yang memilih Luar Batam
+            const kota = document.getElementById('kota_lapak');
+            if (kota) kota.required = isPenjual && document.getElementById('lokasi_lapak').value === @json(\App\Support\SellerLocation::OUTSIDE_BATAM);
         }
 
         // Jalankan saat pertama kali halaman dimuat

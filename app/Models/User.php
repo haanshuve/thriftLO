@@ -28,6 +28,7 @@ class User extends Authenticatable
     'phone_number',
     'nama_toko',
     'lokasi_lapak',
+    'kota_lapak',
     'ktp_number',
     'ktp_photo_path',
     'selfie_path',
@@ -72,7 +73,7 @@ class User extends Authenticatable
     // Lokasi untuk ditampilkan ke pembeli, mis. "Nagoya, Batam"
     public function locationLabel(): string
     {
-        return SellerLocation::label($this->lokasi_lapak);
+        return SellerLocation::label($this->lokasi_lapak, $this->kota_lapak);
     }
 
     public function hasActiveSubscription(): bool

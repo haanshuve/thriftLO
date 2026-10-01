@@ -34,9 +34,22 @@ class ProfileUpdateRequest extends FormRequest
         if ($this->user()->role === 'penjual') {
             $rules['nama_toko'] = ['required', 'string', 'max:255'];
             $rules['lokasi_lapak'] = ['required', Rule::in(SellerLocation::options())];
+            $rules['kota_lapak'] = ['nullable', 'required_if:lokasi_lapak,' . SellerLocation::OUTSIDE_BATAM, 'string', 'max:100'];
         }
 
         return $rules;
+    }
+
+    // Kota hanya disimpan untuk penjual Luar Batam; pindah ke kawasan Batam mengosongkannya
+    public function validated($key = null, $default = null)
+    {
+        $data = parent::validated();
+
+        if (array_key_exists('lokasi_lapak', $data)) {
+            $data['kota_lapak'] = $data['lokasi_lapak'] === SellerLocation::OUTSIDE_BATAM ? trim((string) ($data['kota_lapak'] ?? '')) : null;
+        }
+
+        return data_get($data, $key, $default);
     }
 
     public function messages(): array
@@ -52,6 +65,8 @@ class ProfileUpdateRequest extends FormRequest
             'nama_toko.required' => 'Nama toko wajib diisi.',
             'lokasi_lapak.required' => 'Pilih lokasi lapak.',
             'lokasi_lapak.in' => 'Pilih lokasi lapak dari daftar yang tersedia.',
+            'kota_lapak.required_if' => 'Tulis kota asal lapakmu (mis. Surabaya) supaya pembeli tahu barang dikirim dari mana.',
+            'kota_lapak.max' => 'Nama kota maksimal 100 karakter.',
         ];
     }
 }
