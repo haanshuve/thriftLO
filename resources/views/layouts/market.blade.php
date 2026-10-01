@@ -45,7 +45,7 @@
                 @endif
                 <label for="search" class="sr-only">Cari barang preloved</label>
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input type="search" id="search" name="search" value="{{ $onHome ? request('search') : '' }}" placeholder="Cari barang preloved..."
+                <input type="search" id="search" name="search" value="{{ $onHome ? request('search') : '' }}" placeholder="Cari jaket, sepatu, kamera..."
                        class="w-full bg-slate-100 border border-transparent rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:ring-emerald-500">
             </form>
 

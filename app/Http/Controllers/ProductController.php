@@ -111,7 +111,7 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
 
         if (strtolower($product->status) !== 'available') {
-            return redirect()->back()->with('error', 'Maaf, barang ini sudah di-booking!');
+            return redirect()->back()->with('error', 'Yah, barang ini keburu di-booking orang lain. Cek barang lain yang mirip, yuk!');
         }
 
         $qrToken = 'TL-' . strtoupper(Str::random(8));
@@ -128,7 +128,7 @@ class ProductController extends Controller
 
         $product->update(['status' => 'Booked']);
 
-        return redirect()->route('bookings.index')->with('success', 'Barang berhasil di-booking! Token QR COD: ' . $qrToken);
+        return redirect()->route('bookings.index')->with('success', 'Mantap! Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $qrToken . ' di bawah ini.');
     }
 
     public function sellerDashboard()

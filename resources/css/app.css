@@ -10,4 +10,19 @@
     .no-scrollbar::-webkit-scrollbar {
         display: none;
     }
+
+    /* Muncul halus dari bawah, dipakai untuk notifikasi dan kartu */
+    .animate-fade-up {
+        animation: fade-up 0.4s ease-out both;
+    }
+}
+
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Hormati pengaturan "kurangi gerakan" di perangkat pengguna */
+@media (prefers-reduced-motion: reduce) {
+    .animate-fade-up { animation: none; }
 }
