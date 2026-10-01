@@ -48,8 +48,8 @@
 
             @auth
                 @php
-                    // Mengambil data user langsung menggunakan Fully Qualified Class Name (FQCN) tanpa keyword "use"
-                    $widgetContacts = \App\Models\User::where('id', '!=', Auth::id())->take(6)->get();
+                    // Hanya lawan bicara dari 6 percakapan terbaru, bukan semua user
+                    $widgetContacts = \App\Models\Message::conversationsFor(Auth::user(), 6)->pluck('partner');
                 @endphp
 
                 @forelse($widgetContacts as $wc)
@@ -68,7 +68,7 @@
                 @empty
                     <div class="text-center py-12 text-slate-400 text-xs">
                         <span class="text-3xl block mb-2">📭</span>
-                        Belum ada kontak obrolan tersedia.
+                        Belum ada percakapan. Mulai chat dari tombol "Chat Penjual" di katalog.
                     </div>
                 @endforelse
             @else

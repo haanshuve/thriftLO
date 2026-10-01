@@ -13,6 +13,11 @@ class MarketLayout extends Component
     public function __construct(
         public ?string $title = null,
         public bool $showCategories = false,
+        // Halaman setinggi layar dengan scroll di dalam konten (mis. ruang chat)
+        public bool $fullHeight = false,
+        // Sembunyikan bottom nav di mobile (mis. saat berada di dalam satu percakapan)
+        public bool $mobileBottomNav = true,
+        public bool $floatingChat = true,
     ) {
     }
 

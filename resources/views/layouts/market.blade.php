@@ -7,7 +7,7 @@
     <title>{{ $title ? $title . ' - thriftLO' : 'thriftLO - Smart Preloved & Thrifting Hub Batam' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-white text-slate-800 font-sans antialiased pb-20 sm:pb-0 selection:bg-emerald-500 selection:text-white">
+<body class="bg-white text-slate-800 font-sans antialiased sm:pb-0 selection:bg-emerald-500 selection:text-white {{ $mobileBottomNav ? 'pb-20' : '' }} {{ $fullHeight ? 'h-[100dvh] flex flex-col overflow-hidden' : '' }}">
 
     @php
         $onTransaksi = request()->routeIs('dashboard', 'bookings.index');
@@ -15,7 +15,7 @@
     @endphp
 
     <!-- Header / Navbar -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shrink-0">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-6">
 
             <!-- Logo -->
@@ -89,8 +89,13 @@
         @endif
     </header>
 
-    {{ $slot }}
+    @if($fullHeight)
+        <div class="flex-1 min-h-0 flex flex-col">{{ $slot }}</div>
+    @else
+        {{ $slot }}
+    @endif
 
+    @if($mobileBottomNav)
     <!-- Bottom navigation (mobile) -->
     <nav class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]" aria-label="Navigasi bawah">
         <div class="grid grid-cols-5 text-[11px] font-semibold">
@@ -119,10 +124,13 @@
             </a>
         </div>
     </nav>
+    @endif
 
-    <!-- Floating chat hanya di desktop; di mobile sudah ada tab Chat di bottom navigation -->
-    <div class="hidden sm:block">
-        @include('components.floating-chat')
-    </div>
+    @if($floatingChat)
+        <!-- Floating chat hanya di desktop; di mobile sudah ada tab Chat di bottom navigation -->
+        <div class="hidden sm:block">
+            @include('components.floating-chat')
+        </div>
+    @endif
 </body>
 </html>
