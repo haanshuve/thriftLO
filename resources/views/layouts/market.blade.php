@@ -10,7 +10,18 @@
 <body class="bg-white text-slate-800 font-sans antialiased sm:pb-0 selection:bg-emerald-500 selection:text-white {{ $mobileBottomNav ? 'pb-20' : '' }} {{ $fullHeight ? 'h-[100dvh] flex flex-col overflow-hidden' : '' }}">
 
     @php
-        $onTransaksi = request()->routeIs('dashboard', 'bookings.index');
+        $onTransaksi = request()->routeIs('dashboard', 'bookings.index', 'admin.*');
+        $role = auth()->user()?->role;
+        $transaksiLabel = match ($role) {
+            'penjual' => 'Toko Saya',
+            'admin'   => 'Panel Admin',
+            default   => 'Transaksi',
+        };
+        $transaksiShortLabel = match ($role) {
+            'penjual' => 'Toko',
+            'admin'   => 'Admin',
+            default   => 'Transaksi',
+        };
         $onHome = request()->routeIs('home');
     @endphp
 
@@ -50,7 +61,7 @@
                 @auth
                     <a href="{{ $transaksiUrl }}" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-slate-100 {{ $onTransaksi ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 hover:text-emerald-700' }}"
                        @if($onTransaksi) aria-current="page" @endif>
-                        {{ auth()->user()->role === 'penjual' ? 'Toko Saya' : 'Transaksi' }}
+                        {{ $transaksiLabel }}
                     </a>
                     <span class="hidden sm:block w-px h-6 bg-slate-200"></span>
                     <a href="{{ route('profile.edit') }}" class="hidden sm:flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-100">
@@ -116,7 +127,7 @@
             </a>
             <a href="{{ $transaksiUrl }}" class="flex flex-col items-center gap-0.5 py-2 {{ $onTransaksi ? 'text-emerald-700' : 'text-slate-500' }}">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16l-3-2-2 2-2-2-2 2-2-2-3 2V4Z"/><path d="M9 9h6M9 13h6"/></svg>
-                {{ auth()->user()?->role === 'penjual' ? 'Toko' : 'Transaksi' }}
+                {{ $transaksiShortLabel }}
             </a>
             <a href="{{ auth()->check() ? route('profile.edit') : route('login') }}" class="flex flex-col items-center gap-0.5 py-2 {{ request()->routeIs('profile.*') ? 'text-emerald-700' : 'text-slate-500' }}">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>

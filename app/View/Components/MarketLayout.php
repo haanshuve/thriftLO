@@ -29,9 +29,13 @@ class MarketLayout extends Component
             'categories'     => config('thriftlo.categories'),
             'activeKategori' => request('kategori', 'all'),
             'unreadCount'    => $user ? Message::where('receiver_id', $user->id)->where('is_read', false)->count() : 0,
-            'transaksiUrl'   => $user
-                ? ($user->role === 'penjual' ? route('dashboard') : route('bookings.index'))
-                : route('login'),
+            // Menu utama per peran: penjual -> Toko Saya, admin -> Panel Admin, pembeli -> Tiket Saya
+            'transaksiUrl'   => match ($user?->role) {
+                null      => route('login'),
+                'penjual' => route('dashboard'),
+                'admin'   => route('admin.sellers'),
+                default   => route('bookings.index'),
+            },
         ]);
     }
 }
