@@ -1,126 +1,190 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>One to Buy - Request Barang thriftLO</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased pb-20">
+<x-market-layout title="Request Barang">
 
-    <!-- Navbar Sederhana -->
-    <header class="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
-            <a href="{{ route('home') }}" class="font-black text-lg tracking-tight flex items-center gap-2">
-                🛍️ thriftLO <span class="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-full uppercase">Batam Market</span>
-            </a>
-            <a href="{{ route('home') }}" class="bg-white/10 hover:bg-white/20 text-white text-xs font-extrabold px-3.5 py-2 rounded-xl transition">
-                ← Kembali ke Katalog Utama
-            </a>
-        </div>
-    </header>
+    @php
+        $me = Auth::id();
+        $isSeller = Auth::user()->role === 'penjual';
+        $openFormOnLoad = $errors->request->any();
+        $input = 'w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500';
+    @endphp
 
-    <main class="container mx-auto max-w-5xl px-4 py-8">
-        <!-- Banner Info -->
-        <div class="bg-gradient-to-br from-emerald-900 to-teal-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl mb-8 flex flex-col sm:flex-row justify-between items-center gap-6">
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+
+        <!-- Ajakan -->
+        <section class="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-                <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-400/30 uppercase tracking-wider mb-2 inline-block">
-                    📢 Fitur Reverse Marketplace (One to Buy)
-                </span>
-                <h2 class="text-2xl sm:text-3xl font-black">Cari Barang Impianmu di Sini</h2>
-                <p class="text-xs sm:text-sm text-slate-300 mt-1">Punya barang preloved incaran tapi belum ada di katalog? Posting permintaannya, biarkan para penjual Batam yang menawarkan barangnya ke kamu!</p>
+                <h1 class="text-lg sm:text-xl font-black leading-tight">Request Barang</h1>
+                <p class="text-sm text-emerald-50 mt-0.5">
+                    @if($isSeller)
+                        Lihat barang yang sedang dicari pembeli di Batam, lalu tawarkan stokmu lewat chat.
+                    @else
+                        Belum nemu di katalog? Posting barang yang kamu cari, biar penjual di Batam yang menawarkan.
+                    @endif
+                </p>
             </div>
-            @auth
-                <button onclick="document.getElementById('requestModal').classList.remove('hidden')" class="bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-black px-5 py-3 rounded-2xl shadow-lg transition shrink-0 uppercase tracking-wider">
-                    ➕ Buat Request Barang
-                </button>
-            @else
-                <a href="{{ route('login') }}" class="bg-amber-400 text-slate-950 text-xs font-black px-5 py-3 rounded-2xl shadow-lg uppercase tracking-wider">
-                    Login untuk Posting Request
-                </a>
-            @endauth
-        </div>
+            <button type="button" onclick="openRequestModal()" class="shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-white text-emerald-700 hover:bg-emerald-50 text-sm font-semibold">
+                <span aria-hidden="true" class="text-lg leading-none">+</span> Buat Request
+            </button>
+        </section>
 
         @if(session('success'))
-            <div class="bg-emerald-600 text-white p-4 rounded-2xl mb-6 shadow-md text-xs font-bold">
-                🎉 {{ session('success') }}
-            </div>
+            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">✅ {{ session('success') }}</div>
         @endif
 
-        <!-- Daftar Request Feed -->
-        <h3 class="font-black text-slate-900 text-lg mb-4">📋 Daftar Permintaan Pembeli di Batam</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Tab -->
+        <nav class="flex border-b border-slate-200" aria-label="Filter request">
+            @foreach(['semua' => 'Sedang dicari', 'saya' => 'Request saya'] as $key => $label)
+                <a href="{{ route('requests.index', $key === 'saya' ? ['tab' => 'saya'] : []) }}"
+                   class="flex-1 sm:flex-none sm:px-6 text-center py-2.5 text-sm font-semibold border-b-2 -mb-px transition {{ $tab === $key ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700' }}"
+                   @if($tab === $key) aria-current="page" @endif>{{ $label }}</a>
+            @endforeach
+        </nav>
+
+        <!-- Daftar request -->
+        <div class="grid sm:grid-cols-2 gap-3">
             @forelse($requests as $req)
-                <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition">
-                    <div>
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="bg-emerald-50 text-emerald-700 text-[10px] font-black px-2.5 py-1 rounded-lg border border-emerald-100 uppercase">{{ $req->kategori }}</span>
-                            <span class="text-[11px] font-bold text-slate-400">👤 {{ $req->user->name ?? 'Pembeli' }}</span>
-                        </div>
-                        <h4 class="font-black text-slate-900 text-base mb-1">{{ $req->nama_barang }}</h4>
-                        <p class="text-xs text-slate-500 mb-4 line-clamp-2">{{ $req->deskripsi }}</p>
+                @php
+                    $isMine = (int) $req->user_id === $me;
+                    $fulfilled = $req->status === 'Fulfilled';
+                    $cat = $categories[$req->kategori] ?? null;
+                @endphp
+                <article class="rounded-xl border border-slate-200 bg-white p-4 flex flex-col {{ $fulfilled ? 'opacity-70' : '' }}">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                            {{ $cat ? $cat['icon'] . ' ' . $cat['label'] : $req->kategori }}
+                        </span>
+                        @if($fulfilled)
+                            <span class="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">✓ Sudah didapat</span>
+                        @else
+                            <span class="text-xs text-slate-400">{{ $req->created_at->locale('id')->diffForHumans() }}</span>
+                        @endif
                     </div>
 
-                    <div class="pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <h2 class="mt-2 font-semibold text-slate-900 leading-snug">{{ $req->nama_barang }}</h2>
+                    <p class="mt-1 text-sm text-slate-600 line-clamp-3 whitespace-pre-line">{{ $req->deskripsi }}</p>
+
+                    <dl class="mt-3 mb-3 grid grid-cols-2 gap-2 text-sm">
                         <div>
-                            <span class="text-[10px] text-slate-400 font-bold block uppercase">Estimasi Budget:</span>
-                            <span class="text-sm font-black text-emerald-700">Rp {{ number_format($req->budget_maksimal, 0, ',', '.') }}</span>
+                            <dt class="text-xs text-slate-500">Budget maksimal</dt>
+                            <dd class="font-bold text-emerald-700 tabular-nums">Rp{{ number_format($req->budget_maksimal, 0, ',', '.') }}</dd>
                         </div>
-                        <div class="text-right">
-                            <span class="text-[10px] text-slate-400 font-bold block uppercase">Lokasi COD:</span>
-                            <span class="text-xs font-extrabold text-slate-700">📍 {{ $req->lokasi_cod }}</span>
+                        <div>
+                            <dt class="text-xs text-slate-500">Lokasi COD</dt>
+                            <dd class="font-medium text-slate-700 truncate">📍 {{ $req->lokasi_cod }}</dd>
                         </div>
+                    </dl>
+
+                    <div class="mt-auto pt-3 flex items-center justify-between gap-2 border-t border-slate-100">
+                        <p class="text-xs text-slate-500 truncate">Dicari oleh <span class="font-medium text-slate-700">{{ $isMine ? 'kamu' : ($req->user->name ?? 'Pembeli') }}</span></p>
+
+                        @if($isMine)
+                            @unless($fulfilled)
+                                <form action="{{ route('requests.fulfill', $req) }}" method="POST" onsubmit="return confirm('Tandai request ini sudah didapat? Request tidak akan tampil lagi ke penjual.')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="shrink-0 h-9 px-3 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm font-semibold">Sudah dapat</button>
+                                </form>
+                            @endunless
+                        @elseif(!$fulfilled)
+                            <a href="{{ route('chat.index', ['user_id' => $req->user_id]) }}"
+                               class="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg {{ $isSeller ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'border border-emerald-600 text-emerald-700 hover:bg-emerald-50' }} text-sm font-semibold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
+                                {{ $isSeller ? 'Tawarkan barang' : 'Chat' }}
+                            </a>
+                        @endif
                     </div>
-                </div>
+                </article>
             @empty
-                <div class="col-span-full text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300">
-                    <span class="text-4xl block mb-2">📭</span>
-                    <h4 class="font-bold text-slate-700 text-sm">Belum ada request barang</h4>
-                    <p class="text-xs text-slate-400 mt-1">Jadilah yang pertama membuat permintaan barang preloved!</p>
+                <div class="sm:col-span-2 text-center py-14 rounded-xl border border-dashed border-slate-300">
+                    <p class="text-4xl mb-2" aria-hidden="true">🔎</p>
+                    @if($tab === 'saya')
+                        <p class="font-bold text-slate-800">Kamu belum pernah membuat request</p>
+                        <p class="text-sm text-slate-500 mt-1">Ceritakan barang yang kamu cari, penjual akan menghubungimu lewat chat.</p>
+                    @else
+                        <p class="font-bold text-slate-800">Belum ada request barang</p>
+                        <p class="text-sm text-slate-500 mt-1">Jadilah yang pertama memposting barang incaranmu.</p>
+                    @endif
+                    <button type="button" onclick="openRequestModal()" class="mt-4 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">+ Buat Request</button>
                 </div>
             @endforelse
         </div>
     </main>
 
-    <!-- Modal Form Buat Request -->
-    <div id="requestModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 sm:p-7 rounded-3xl max-w-md w-full shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-base font-black text-slate-900">📢 Posting Request Barang</h3>
-                <button onclick="document.getElementById('requestModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+    <!-- Form buat request -->
+    <div id="requestModal" class="fixed inset-0 bg-slate-900/60 {{ $openFormOnLoad ? 'flex' : 'hidden' }} items-end sm:items-center justify-center z-50 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="requestTitle">
+        <div class="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[92vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white flex justify-between items-center px-5 sm:px-6 py-4 border-b border-slate-100">
+                <h3 id="requestTitle" class="text-base font-bold text-slate-900">Buat request barang</h3>
+                <button type="button" onclick="closeRequestModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl" aria-label="Tutup">&times;</button>
             </div>
 
-            <form action="{{ route('requests.store') }}" method="POST" class="space-y-3.5">
+            <form action="{{ route('requests.store') }}" method="POST" class="px-5 sm:px-6 py-4 space-y-3.5">
                 @csrf
+
+                @if($errors->request->any())
+                    <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700" role="alert">
+                        <p class="font-semibold">Request belum terkirim:</p>
+                        <ul class="list-disc list-inside mt-0.5">
+                            @foreach($errors->request->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Nama Barang yang Dicari</label>
-                    <input type="text" name="nama_barang" placeholder="Contoh: Kamera Sony A6000 / Hoodie Vintage" required class="w-full border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500">
+                    <label for="nama_barang" class="block text-sm font-semibold text-slate-700 mb-1">Barang yang dicari</label>
+                    <input type="text" id="nama_barang" name="nama_barang" value="{{ old('nama_barang') }}" maxlength="255" required placeholder="Contoh: Kamera Sony A6000" class="{{ $input }}">
                 </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="kategori" class="block text-sm font-semibold text-slate-700 mb-1">Kategori</label>
+                        <select id="kategori" name="kategori" required class="{{ $input }}">
+                            @foreach($categories as $value => $cat)
+                                <option value="{{ $value }}" @selected(old('kategori') === $value)>{{ $cat['icon'] }} {{ $cat['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="budget_maksimal" class="block text-sm font-semibold text-slate-700 mb-1">Budget maks. (Rp)</label>
+                        <input type="number" id="budget_maksimal" name="budget_maksimal" value="{{ old('budget_maksimal') }}" min="0" step="1000" inputmode="numeric" required placeholder="2500000" class="{{ $input }}">
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Kategori</label>
-                    <select name="kategori" class="w-full border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500">
-                        <option value="Fashion">👕 Fashion / Pakaian</option>
-                        <option value="Vintage Tech">📷 Vintage Tech (Gadget)</option>
-                        <option value="Lainnya">📦 Lainnya</option>
-                    </select>
+                    <label for="lokasi_cod" class="block text-sm font-semibold text-slate-700 mb-1">Lokasi COD yang diinginkan</label>
+                    <input type="text" id="lokasi_cod" name="lokasi_cod" value="{{ old('lokasi_cod') }}" maxlength="255" required placeholder="Contoh: Batam Center / Nagoya Hill" class="{{ $input }}">
                 </div>
+
                 <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Budget Maksimal (Rp)</label>
-                    <input type="number" name="budget_maksimal" placeholder="Contoh: 2500000" required class="w-full border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500">
+                    <label for="deskripsi" class="block text-sm font-semibold text-slate-700 mb-1">Kriteria barang</label>
+                    <textarea id="deskripsi" name="deskripsi" rows="3" maxlength="2000" required placeholder="Ukuran, warna, kondisi minimal, kelengkapan..." class="{{ $input }}">{{ old('deskripsi') }}</textarea>
                 </div>
-                <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Preferensi Lokasi COD (Batam)</label>
-                    <input type="text" name="lokasi_cod" placeholder="Contoh: Batam Center / Nagoya Hill" required class="w-full border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Deskripsi / Detail Tambahan</label>
-                    <textarea name="deskripsi" rows="3" placeholder="Jelaskan kondisi minimal atau kriteria khusus..." required class="w-full border border-slate-200 rounded-2xl p-3 text-xs font-medium focus:ring-2 focus:ring-emerald-500"></textarea>
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-2xl transition text-xs shadow-lg uppercase tracking-wider mt-2">
-                    Kirim Request ke Penjual
-                </button>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">Posting request</button>
             </form>
         </div>
     </div>
-</body>
-</html>
+
+    <script>
+        function openRequestModal() {
+            const modal = document.getElementById('requestModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('nama_barang').focus();
+        }
+
+        function closeRequestModal() {
+            const modal = document.getElementById('requestModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.getElementById('requestModal').addEventListener('click', function (e) {
+            if (e.target === this) closeRequestModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeRequestModal();
+        });
+    </script>
+</x-market-layout>

@@ -37,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Fitur One to Buy / Request Barang
     Route::get('/requests', [RequestController::class, 'index'])->name('requests.index');
     Route::post('/requests', [RequestController::class, 'store'])->name('requests.store');
+    Route::patch('/requests/{productRequest}/fulfill', [RequestController::class, 'fulfill'])->name('requests.fulfill');
 
     // Profil Breeze
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
