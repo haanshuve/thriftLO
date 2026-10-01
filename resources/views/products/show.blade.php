@@ -60,7 +60,7 @@
                             {{ $seller->nama_toko ?: $seller->name }}
                             @if($seller->seller_status === 'verified')<span class="text-emerald-600" title="Penjual terverifikasi">✓</span>@endif
                         </p>
-                        <p class="text-xs text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $seller->lokasi_lapak ?: 'Lokasi belum diisi' }} · {{ $canCod ? 'Bisa COD di Batam' : 'Hanya pengiriman' }}</p>
+                        <p class="text-xs text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $seller->locationLabel() }} ·{{ $canCod ? 'Bisa COD di Batam' : 'Hanya pengiriman' }}</p>
                     </div>
                     @unless($isOwner)
                         <a href="{{ route('chat.index', ['user_id' => $seller->id, 'product_id' => $product->id]) }}" class="shrink-0 h-9 px-3 inline-flex items-center rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold">Tanya</a>
@@ -100,7 +100,7 @@
                             @csrf
                             <div>
                                 <h2 class="font-semibold text-slate-900">Pilih Pengiriman</h2>
-                                <p class="text-sm text-slate-500 mt-0.5">Dikirim dari {{ $seller->lokasi_lapak ?: 'lokasi penjual' }}.</p>
+                                <p class="text-sm text-slate-500 mt-0.5">Dikirim dari {{ $seller->isInBatam() ? $seller->locationLabel() : 'luar Batam' }}.</p>
                             </div>
 
                             <fieldset class="space-y-2">

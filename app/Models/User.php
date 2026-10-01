@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\SellerLocation;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -62,10 +63,16 @@ class User extends Authenticatable
         return $this->hasMany(Product::class);
     }
 
-    // Lokasi lapak dari registrasi KYC; COD hanya tersedia kalau mengandung kata "Batam"
+    // Lokasi lapak dari dropdown registrasi/profil; semua pilihan selain "Luar Batam" boleh COD
     public function isInBatam(): bool
     {
-        return str_contains(mb_strtolower((string) $this->lokasi_lapak), 'batam');
+        return SellerLocation::isBatam($this->lokasi_lapak);
+    }
+
+    // Lokasi untuk ditampilkan ke pembeli, mis. "Nagoya, Batam"
+    public function locationLabel(): string
+    {
+        return SellerLocation::label($this->lokasi_lapak);
     }
 
     public function hasActiveSubscription(): bool

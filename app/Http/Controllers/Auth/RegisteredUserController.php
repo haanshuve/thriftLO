@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\SellerLocation;
+use Illuminate\Validation\Rule;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,13 +34,15 @@ class RegisteredUserController extends Controller
         // Jika mendaftar sebagai penjual, wajib validasi KYC & atribut toko
         if ($request->role === 'penjual') {
             $rules['nama_toko'] = ['required', 'string', 'max:255'];
-            $rules['lokasi_lapak'] = ['required', 'string', 'max:255'];
+            $rules['lokasi_lapak'] = ['required', Rule::in(SellerLocation::options())];
             // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
             $rules['ktp_photo'] = ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'];
             $rules['selfie_ktp'] = ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'];
         }
 
         $request->validate($rules, [
+            'lokasi_lapak.required' => 'Pilih lokasi lapak.',
+            'lokasi_lapak.in'       => 'Pilih lokasi lapak dari daftar yang tersedia.',
             'ktp_photo.required'  => 'Foto KTP wajib diunggah.',
             'ktp_photo.image'     => 'Foto KTP harus berupa gambar (JPG, PNG, atau WEBP).',
             'ktp_photo.mimes'     => 'Foto KTP harus berformat JPG, PNG, atau WEBP.',

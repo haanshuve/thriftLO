@@ -58,7 +58,7 @@
                 <div class="min-w-0">
                     <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">{{ $user->nama_toko ?: $user->name }}</h1>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
-                        <span>📍 {{ $user->lokasi_lapak ?: 'Batam' }}</span>
+                        <span>📍 {{ $user->locationLabel() }}</span>
                         @if($isVerified)
                             <span class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Penjual terverifikasi</span>
                         @elseif($user->seller_status === 'rejected')

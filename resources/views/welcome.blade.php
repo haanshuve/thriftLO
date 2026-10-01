@@ -135,7 +135,7 @@
 
                                 <p class="mt-1 text-base sm:text-lg font-bold text-emerald-700 tabular-nums">Rp{{ number_format($p->price, 0, ',', '.') }}</p>
 
-                                <p class="mt-1 text-[11px] text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $p->user->lokasi_lapak ?: 'Lokasi belum diisi' }} ·{{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
+                                <p class="mt-1 text-[11px] text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $p->user->locationLabel() }} ·{{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
 
                                 <div class="mt-auto pt-2.5 flex gap-1.5">
                                     @if($isOwn)

@@ -54,8 +54,18 @@
                     <x-input-error class="mt-1" :messages="$errors->get('nama_toko')" />
                 </div>
                 <div>
-                    <label for="lokasi_lapak" class="block text-sm font-semibold text-slate-700 mb-1">Lokasi lapak / COD</label>
-                    <input id="lokasi_lapak" name="lokasi_lapak" type="text" value="{{ old('lokasi_lapak', $user->lokasi_lapak) }}" required maxlength="255" placeholder="Contoh: Batam Center" class="{{ $input }}">
+                    @php $currentLocation = old('lokasi_lapak', $user->lokasi_lapak); @endphp
+                    <label for="lokasi_lapak" class="block text-sm font-semibold text-slate-700 mb-1">Lokasi lapak</label>
+                    <select id="lokasi_lapak" name="lokasi_lapak" required class="{{ $input }}">
+                        <option value="" disabled @selected(!in_array($currentLocation, \App\Support\SellerLocation::options(), true))>Pilih kawasan lapakmu</option>
+                        <optgroup label="Batam (bisa COD)">
+                            @foreach(config('thriftlo.batam_areas') as $area)
+                                <option value="{{ $area }}" @selected($currentLocation === $area)>{{ $area }}</option>
+                            @endforeach
+                        </optgroup>
+                        <option value="{{ \App\Support\SellerLocation::OUTSIDE_BATAM }}" @selected($currentLocation === \App\Support\SellerLocation::OUTSIDE_BATAM)>Luar Batam (hanya pengiriman)</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-500">Lapak di Batam bisa COD. Luar Batam hanya bisa lewat pengiriman.</p>
                     <x-input-error class="mt-1" :messages="$errors->get('lokasi_lapak')" />
                 </div>
             </div>

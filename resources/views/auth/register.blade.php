@@ -109,8 +109,17 @@
                             <input type="text" id="nama_toko" name="nama_toko" value="{{ old('nama_toko') }}" placeholder="Contoh: Batam Vintage Hub" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-extrabold text-gray-700 mb-1">Lokasi Lapak / COD Batam</label>
-                            <input type="text" id="lokasi_lapak" name="lokasi_lapak" value="{{ old('lokasi_lapak') }}" placeholder="Contoh: Batam Center / Sekupang" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
+                            <label for="lokasi_lapak" class="block text-xs font-extrabold text-gray-700 mb-1">Lokasi Lapak</label>
+                            <select id="lokasi_lapak" name="lokasi_lapak" class="w-full border-gray-200 rounded-xl p-2.5 text-xs border bg-white">
+                                <option value="" disabled @selected(!old('lokasi_lapak'))>Pilih kawasan lapakmu</option>
+                                <optgroup label="Batam (bisa COD)">
+                                    @foreach(config('thriftlo.batam_areas') as $area)
+                                        <option value="{{ $area }}" @selected(old('lokasi_lapak') === $area)>{{ $area }}</option>
+                                    @endforeach
+                                </optgroup>
+                                <option value="{{ \App\Support\SellerLocation::OUTSIDE_BATAM }}" @selected(old('lokasi_lapak') === \App\Support\SellerLocation::OUTSIDE_BATAM)>Luar Batam (hanya pengiriman)</option>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1">Lapak di Batam bisa COD. Luar Batam hanya bisa lewat pengiriman.</p>
                         </div>
                     </div>
 

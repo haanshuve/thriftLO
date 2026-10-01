@@ -23,7 +23,7 @@ class ShippingTest extends TestCase
     {
         parent::setUp();
         $this->batamSeller = $this->seller('Batam Vintage Hub', 'Batam Center');
-        $this->jakartaSeller = $this->seller('Jakarta Retro', 'Jakarta Selatan');
+        $this->jakartaSeller = $this->seller('Jakarta Retro', 'Luar Batam');
         $this->buyer = User::factory()->create(['name' => 'Budi', 'role' => 'pembeli']);
     }
 
@@ -66,12 +66,13 @@ class ShippingTest extends TestCase
 
     // --- Deteksi Batam ---
 
-    public function test_batam_detection_is_case_insensitive_and_uses_lokasi_lapak(): void
+    public function test_every_batam_area_option_allows_cod_except_luar_batam(): void
     {
-        $this->assertTrue($this->seller('A', 'BATAM CENTER')->isInBatam());
-        $this->assertTrue($this->seller('B', 'Kota batam, Nagoya')->isInBatam());
-        $this->assertFalse($this->seller('C', 'Surabaya')->isInBatam());
-        $this->assertFalse($this->seller('D', null)->isInBatam());
+        $this->assertTrue($this->seller('A', 'Batam Center')->isInBatam());
+        $this->assertTrue($this->seller('B', 'Botania')->isInBatam());
+        $this->assertTrue($this->seller('C', 'Batam lainnya')->isInBatam());
+        $this->assertFalse($this->seller('D', 'Luar Batam')->isInBatam());
+        $this->assertFalse($this->seller('E', null)->isInBatam());
     }
 
     public function test_catalog_card_shows_cod_for_batam_and_shipping_for_other_cities(): void

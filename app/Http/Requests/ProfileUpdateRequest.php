@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use App\Support\SellerLocation;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -32,7 +33,7 @@ class ProfileUpdateRequest extends FormRequest
         // Data toko hanya untuk penjual; wajib seperti saat registrasi
         if ($this->user()->role === 'penjual') {
             $rules['nama_toko'] = ['required', 'string', 'max:255'];
-            $rules['lokasi_lapak'] = ['required', 'string', 'max:255'];
+            $rules['lokasi_lapak'] = ['required', Rule::in(SellerLocation::options())];
         }
 
         return $rules;
@@ -49,7 +50,8 @@ class ProfileUpdateRequest extends FormRequest
             'phone_number.regex' => 'Nomor WhatsApp hanya boleh berisi angka, spasi, tanda + atau -.',
             'phone_number.max' => 'Nomor WhatsApp maksimal 20 karakter.',
             'nama_toko.required' => 'Nama toko wajib diisi.',
-            'lokasi_lapak.required' => 'Lokasi lapak wajib diisi.',
+            'lokasi_lapak.required' => 'Pilih lokasi lapak.',
+            'lokasi_lapak.in' => 'Pilih lokasi lapak dari daftar yang tersedia.',
         ];
     }
 }

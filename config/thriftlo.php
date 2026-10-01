@@ -25,6 +25,35 @@ return [
     ],
 
     /*
+    | Pilihan lokasi lapak di Batam (dropdown registrasi & profil penjual). Semua pilihan
+    | ini boleh COD; opsi "Luar Batam" ditambahkan di akhir oleh App\Support\SellerLocation.
+    | "Batam lainnya" untuk kawasan Batam yang tidak ada di daftar.
+    */
+    'batam_areas' => [
+        'Batam Center',
+        'Batam Kota',
+        'Nagoya',
+        'Jodoh',
+        'Lubuk Baja',
+        'Baloi',
+        'Batu Ampar',
+        'Bengkong',
+        'Botania',
+        'Sei Panas',
+        'Sekupang',
+        'Tiban',
+        'Batu Aji',
+        'Sagulung',
+        'Tanjung Uncang',
+        'Mukakuning',
+        'Sei Beduk',
+        'Tanjung Piayu',
+        'Nongsa',
+        'Belakang Padang',
+        'Batam lainnya',
+    ],
+
+    /*
     | Langganan penjual. Tanpa langganan, penjual hanya bisa menayangkan sejumlah
     | free_product_limit produk aktif (Available + Booked).
     | simulate_payment: tombol "Bayar Sekarang" langsung mengaktifkan langganan tanpa
