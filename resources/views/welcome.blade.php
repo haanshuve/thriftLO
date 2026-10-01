@@ -2,299 +2,316 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>thriftLO - Smart Preloved & Thrifting Hub Batam</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased pb-20 selection:bg-emerald-500 selection:text-white">
+<body class="bg-white text-slate-800 font-sans antialiased pb-20 sm:pb-0 selection:bg-emerald-500 selection:text-white">
 
-    <!-- Header / Navbar Navigasi Modern -->
-    <header class="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-md sticky top-0 z-50 backdrop-blur-md">
-        <div class="container mx-auto px-4 sm:px-8 py-3 flex justify-between items-center gap-4">
+    @php
+        $activeKategori = request('kategori', 'all');
+        $transaksiUrl = auth()->check()
+            ? (auth()->user()->role === 'penjual' ? route('dashboard') : route('bookings.index'))
+            : route('login');
+    @endphp
 
-            <!-- Logo & Title -->
-            <div class="flex items-center gap-3 shrink-0">
-                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md overflow-hidden p-1 border border-white/20">
-                    <img src="{{ asset('images/logo.jpeg') }}" alt="Logo ThriftLO" class="w-full h-full object-cover rounded-lg" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=100&q=80';">
-                </div>
-                <div>
-                    <h1 class="text-base sm:text-lg font-black tracking-tight flex items-center gap-2 text-white">
-                        thriftLO
-                        <span class="text-[9px] bg-emerald-900/60 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Batam</span>
-                    </h1>
-                    <p class="text-[10px] text-emerald-100 hidden sm:block font-medium">Low Friction for Buyers, High Trust for Seller</p>
-                </div>
-            </div>
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-6">
 
-            <!-- Kolom Search di Navbar (Single & Pas di Tengah) -->
-            <div class="flex-1 max-w-xs sm:max-w-sm mx-2">
-                <form action="{{ route('home') }}" method="GET" class="relative">
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="🔍 Cari barang preloved..." class="w-full bg-emerald-800/70 text-white placeholder-emerald-200 text-xs font-bold rounded-2xl px-4 py-2 pl-9 border border-emerald-500/40 focus:outline-none focus:ring-2 focus:ring-white transition shadow-inner">
-                    <span class="absolute left-3 top-2.5 text-xs text-emerald-200">🔍</span>
-                </form>
-            </div>
+            <!-- Logo -->
+            <a href="{{ route('home') }}" class="flex items-center gap-2 shrink-0">
+                <img src="{{ asset('images/logo.jpeg.jpeg') }}" alt="Logo thriftLO" class="w-9 h-9 rounded-lg object-cover border border-slate-200">
+                <span class="hidden sm:flex flex-col leading-none">
+                    <span class="text-lg font-black tracking-tight text-emerald-700">thriftLO</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Batam</span>
+                </span>
+            </a>
 
-            <!-- Navbar Menu -->
-            <nav class="flex items-center gap-2 sm:gap-3 text-xs font-extrabold shrink-0">
-                <a href="#katalog" class="text-emerald-100 hover:text-white px-3 py-2 rounded-xl transition hover:bg-white/10 hidden lg:block">
-                    Katalog Utama
+            <!-- Search -->
+            <form action="{{ route('home') }}" method="GET" class="flex-1 relative" role="search">
+                @if($activeKategori !== 'all')
+                    <input type="hidden" name="kategori" value="{{ $activeKategori }}">
+                @endif
+                <label for="search" class="sr-only">Cari barang preloved</label>
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input type="search" id="search" name="search" value="{{ request('search') }}" placeholder="Cari barang preloved..."
+                       class="w-full bg-slate-100 border border-transparent rounded-lg pl-9 pr-3 py-2 text-sm placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:ring-emerald-500">
+            </form>
+
+            <!-- Aksi kanan -->
+            <nav class="flex items-center gap-1 sm:gap-2 shrink-0 text-sm font-semibold" aria-label="Menu utama">
+                <a href="{{ route('chat.index') }}" class="relative p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-emerald-700" aria-label="Chat{{ $unreadCount ? ", $unreadCount pesan belum dibaca" : '' }}">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
+                    @if($unreadCount > 0)
+                        <span class="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+                    @endif
                 </a>
 
                 @auth
-                    <a href="{{ route('chat.index') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-xl transition flex items-center gap-1.5 backdrop-blur-sm">
-                        💬 Chat
+                    <a href="{{ $transaksiUrl }}" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-emerald-700">
+                        {{ auth()->user()->role === 'penjual' ? 'Toko Saya' : 'Transaksi' }}
                     </a>
-
-                    @if(Auth::user()->role === 'pembeli')
-                        <a href="{{ route('bookings.index') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-xl transition flex items-center gap-1.5 backdrop-blur-sm">
-                            🎟️ Tiket Saya
-                        </a>
-                    @endif
-
-                    @if(Auth::user()->role === 'penjual')
-                        <a href="{{ route('dashboard') }}" class="bg-amber-400 hover:bg-amber-500 text-gray-900 px-3 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md font-black">
-                            🏬 Dashboard
-                        </a>
-                    @endif
-
-                    <form method="POST" action="{{ route('logout') }}" class="inline">
+                    <span class="hidden sm:block w-px h-6 bg-slate-200"></span>
+                    <a href="{{ route('profile.edit') }}" class="hidden sm:flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-100">
+                        <span class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                        <span class="max-w-[110px] truncate text-slate-700">{{ auth()->user()->name }}</span>
+                    </a>
+                    <form method="POST" action="{{ route('logout') }}" class="hidden sm:block">
                         @csrf
-                        <button type="submit" class="bg-rose-500/80 hover:bg-rose-600 text-white px-3 py-2 rounded-xl transition shadow-sm">
-                            🚪 Keluar
-                        </button>
+                        <button type="submit" class="px-3 py-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-rose-600">Keluar</button>
                     </form>
                 @else
-                    <a href="{{ route('login') }}" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 backdrop-blur-sm">
-                        🔑 Masuk
-                    </a>
-                    <a href="{{ route('register') }}" class="bg-amber-400 hover:bg-amber-500 text-gray-900 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md font-black">
-                        ✍️ Daftar
-                    </a>
+                    <a href="{{ route('login') }}" class="hidden sm:block px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50">Masuk</a>
+                    <a href="{{ route('register') }}" class="px-3 sm:px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Daftar</a>
                 @endauth
             </nav>
         </div>
-    </header>
 
-    <!-- Hero Section Banner -->
-    <section class="bg-emerald-950 text-white py-8 px-6 border-b border-emerald-800 relative overflow-hidden">
-        <div class="container mx-auto max-w-6xl flex flex-col lg:flex-row justify-between items-center gap-6 relative z-10">
-            <div class="text-center lg:text-left flex-1">
-                <span class="inline-flex items-center gap-1.5 bg-emerald-800 text-emerald-200 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-600 uppercase tracking-wider mb-2">
-                    ✨ Batam Circular Commerce Project
-                </span>
-                <h2 class="text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
-                    Preloved Berkualitas, <span class="text-amber-300">Gaya Tanpa Limbah.</span>
-                </h2>
-                <p class="text-xs text-emerald-100 mt-1 font-normal leading-relaxed max-w-xl">
-                    Platform thrifting O2O khusus Kota Batam. Beli barang preloved verified, tawar harga interaktif, dan kunci barang via Token QR COD.
-                </p>
-            </div>
-
-            <!-- Card Impact Counter -->
-            <div class="flex items-center gap-3 shrink-0">
-                <div class="bg-emerald-900/90 border border-emerald-600 px-4 py-3 rounded-2xl text-center shadow-md w-32 text-white">
-                    <span class="text-2xl font-black text-amber-300 block tracking-tight">
-                        {{ number_format($wastePreventedKg ?? 0, 1) }} <span class="text-[10px] font-bold text-emerald-200">kg</span>
-                    </span>
-                    <span class="text-[9px] text-emerald-200 font-extrabold uppercase tracking-wider block mt-0.5">Limbah Dicegah</span>
-                </div>
-                <div class="bg-emerald-900/90 border border-emerald-600 px-4 py-3 rounded-2xl text-center shadow-md w-32 text-white">
-                    <span class="text-2xl font-black text-amber-300 block tracking-tight">
-                        {{ $totalBookings ?? 0 }}
-                    </span>
-                    <span class="text-[9px] text-emerald-200 font-extrabold uppercase tracking-wider block mt-0.5">Transaksi QR</span>
-                </div>
+        <!-- Kategori (chip horizontal) -->
+        <div id="kategori" class="max-w-7xl mx-auto px-4 sm:px-6 pb-3 scroll-mt-20">
+            <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                <a href="{{ route('home', array_filter(['search' => request('search')])) }}"
+                   class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm font-semibold transition {{ $activeKategori === 'all' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-700' }}"
+                   @if($activeKategori === 'all') aria-current="page" @endif>
+                    🛍️ Semua
+                </a>
+                @foreach($categories as $value => $cat)
+                    <a href="{{ route('home', array_filter(['kategori' => $value, 'search' => request('search')])) }}"
+                       class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm font-semibold transition {{ $activeKategori === $value ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-700' }}"
+                       @if($activeKategori === $value) aria-current="page" @endif>
+                        <span aria-hidden="true">{{ $cat['icon'] }}</span> {{ $cat['label'] }}
+                    </a>
+                @endforeach
             </div>
         </div>
-    </section>
+    </header>
 
-    <!-- Main Container Catalog -->
-    <main class="container mx-auto max-w-6xl px-4 py-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
 
-        @if(session('success'))
-            <div class="bg-emerald-600 text-white p-4 rounded-3xl mb-6 shadow-xl border border-emerald-400/30 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl">🎉</span>
+        <!-- Banner ringkas -->
+        @if(!request('search') && $activeKategori === 'all')
+            <section class="mb-4 sm:mb-6 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-3 sm:px-8 sm:py-6 flex items-center justify-between gap-3 sm:gap-4">
+                <div class="min-w-0">
+                    <h1 class="text-sm sm:text-2xl font-black leading-tight">Preloved berkualitas, COD aman di Batam.</h1>
+                    <p class="hidden sm:block text-sm text-emerald-50 mt-1">Chat penjual, tawar harga, lalu kunci barang dengan token QR.</p>
+                </div>
+                <div class="flex gap-3 sm:gap-6 shrink-0 text-right sm:text-left">
                     <div>
-                        <h4 class="font-extrabold text-xs">Berhasil!</h4>
-                        <p class="text-xs text-emerald-100">{{ session('success') }}</p>
+                        <p class="text-base sm:text-2xl font-black tabular-nums">{{ number_format($wastePreventedKg ?? 0, 1, ',', '.') }}<span class="text-[10px] sm:text-sm font-bold"> kg</span></p>
+                        <p class="text-[10px] sm:text-xs text-emerald-100">Limbah dicegah</p>
+                    </div>
+                    <div>
+                        <p class="text-base sm:text-2xl font-black tabular-nums">{{ $totalBookings ?? 0 }}</p>
+                        <p class="text-[10px] sm:text-xs text-emerald-100">Transaksi COD</p>
                     </div>
                 </div>
+            </section>
+        @endif
+
+        <!-- Notifikasi -->
+        @if(session('success'))
+            <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+                ✅ {{ session('success') }}
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">
+                ⚠️ {{ session('error') }}
             </div>
         @endif
 
-        <!-- Filter Bar -->
-        <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-200/80 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div>
-                <h3 class="font-black text-slate-900 text-base flex items-center gap-2">
-                    🛍️ Katalog Barang Preloved
-                </h3>
-                <p class="text-xs text-slate-400 font-medium">Jelajahi koleksi barang bekas berkualitas di Batam</p>
-            </div>
-
-            <div class="w-full sm:w-auto">
-                <form action="{{ route('home') }}" method="GET">
-                    <select name="kategori" onchange="this.form.submit()" class="w-full sm:w-auto bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2 text-xs font-extrabold text-slate-700 focus:ring-2 focus:ring-emerald-500 transition shadow-sm">
-                        <option value="all">🔍 Semua Kategori</option>
-                        <option value="Fashion" {{ request('kategori') == 'Fashion' ? 'selected' : '' }}>👕 Fashion / Pakaian</option>
-                        <option value="Vintage Tech" {{ request('kategori') == 'Vintage Tech' ? 'selected' : '' }}>📷 Vintage Tech (Gadget)</option>
-                    </select>
-                </form>
-            </div>
+        <!-- Judul daftar -->
+        <div class="flex items-baseline justify-between mb-3">
+            <h2 class="text-base sm:text-lg font-bold text-slate-900">
+                @if(request('search'))
+                    Hasil pencarian "{{ request('search') }}"
+                @elseif($activeKategori !== 'all')
+                    {{ $categories[$activeKategori]['label'] ?? $activeKategori }}
+                @else
+                    Barang terbaru di Batam
+                @endif
+            </h2>
+            <span class="text-xs text-slate-400">{{ $products->count() }} barang</span>
         </div>
 
-        <!-- Catalog Product Grid -->
-        <section id="katalog" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-16">
+        <!-- Grid produk -->
+        <section id="katalog" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mb-10">
             @forelse($products as $p)
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden hover:-translate-y-2 transition-all duration-300 hover:shadow-2xl flex flex-col justify-between group">
-                    <div>
-                        <div class="relative h-52 bg-slate-100 overflow-hidden">
-                            <img src="{{ filter_var($p->image_url ?? $p->image_path, FILTER_VALIDATE_URL) ? ($p->image_url ?? $p->image_path) : asset('storage/' . ($p->image_url ?? $p->image_path)) }}"
-                                 alt="{{ $p->nama_barang ?? $p->title }}"
-                                 class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                                 onerror="this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=500&q=80'">
+                @php
+                    $name = $p->title;
+                    $img = filter_var($p->image_url ?? $p->image_path, FILTER_VALIDATE_URL)
+                        ? ($p->image_url ?? $p->image_path)
+                        : asset('storage/' . ($p->image_url ?? $p->image_path));
+                    // "Grade A (Like New)" -> "Like New"
+                    $kondisi = preg_match('/\(([^)]+)\)/', (string) $p->grade, $m) ? $m[1] : ($p->grade ?: 'Preloved');
+                    $gradeLetter = preg_match('/Grade\s+([ABC])/i', (string) $p->grade, $g) ? strtoupper($g[1]) : null;
+                    $kondisiClass = match ($gradeLetter) {
+                        'A' => 'bg-emerald-600 text-white',
+                        'B' => 'bg-amber-400 text-amber-950',
+                        'C' => 'bg-slate-700 text-white',
+                        default => 'bg-white/90 text-slate-700',
+                    };
+                    $isAvailable = strtolower($p->status) === 'available';
+                    $isOwn = auth()->id() === $p->user_id;
+                @endphp
 
-                            <span class="absolute top-3 left-3 {{ $p->mode_jual == 'borongan' ? 'bg-amber-500 text-amber-950' : 'bg-blue-600 text-white' }} text-[9px] font-black px-2.5 py-1 rounded-xl uppercase tracking-wider shadow-md">
-                                {{ $p->mode_jual == 'borongan' ? '📦 BORONGAN' : '🛍️ ECERAN' }}
-                            </span>
+                <article class="group bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg hover:border-slate-300 transition">
+                    <div class="relative aspect-square bg-slate-100 overflow-hidden">
+                        <img src="{{ $img }}" alt="{{ $name }}" loading="lazy"
+                             class="w-full h-full object-cover group-hover:scale-105 transition duration-300 {{ $isAvailable ? '' : 'opacity-60' }}"
+                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=500&q=80'">
 
-                            <span class="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-[9px] font-extrabold px-2.5 py-1 rounded-xl border border-white/20 shadow-sm">
-                                {{ $p->grade }}
-                            </span>
-                        </div>
+                        <span class="absolute top-2 left-2 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md shadow-sm {{ $kondisiClass }}">{{ $kondisi }}</span>
 
-                        <div class="p-4">
-                            <div class="flex justify-between items-center text-xs text-slate-400 mb-1 font-bold">
-                                <span class="text-emerald-600 font-extrabold uppercase tracking-wide text-[9px] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">{{ $p->kategori }}</span>
-                                <span class="text-[10px] truncate max-w-[100px] text-slate-500">👤 {{ $p->user->name ?? 'Penjual Batam' }}</span>
-                            </div>
+                        @if($p->mode_jual === 'borongan')
+                            <span class="absolute top-2 right-2 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-md bg-white/90 text-slate-700 shadow-sm">📦 Borongan</span>
+                        @endif
 
-                            <h4 class="font-black text-slate-900 text-sm line-clamp-1 mb-1 group-hover:text-emerald-600 transition">
-                                {{ $p->nama_barang ?? $p->title }}
-                            </h4>
-
-                            <p class="text-xs text-slate-500 line-clamp-2 mb-3 font-normal leading-relaxed">
-                                {{ $p->description ?? $p->deskripsi ?? 'Kondisi fisik telah terverifikasi.' }}
-                            </p>
-                        </div>
+                        @unless($isAvailable)
+                            <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-xs font-semibold text-center py-1.5">Sedang di-booking</span>
+                        @endunless
                     </div>
 
-                    <div class="p-4 pt-0">
-                        <div class="pt-3 border-t border-slate-100">
-                            <div class="flex justify-between items-baseline mb-3">
-                                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Harga:</span>
-                                <span class="text-base font-black text-emerald-700">Rp {{ number_format($p->harga ?? $p->price, 0, ',', '.') }}</span>
-                            </div>
+                    <div class="p-2.5 sm:p-3 flex flex-col flex-1">
+                        <h3 class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $name }}">{{ $name }}</h3>
 
-                            <div class="grid grid-cols-2 gap-2">
-                                <button onclick="openNegoModal('{{ $p->nama_barang ?? $p->title }}', '{{ $p->harga ?? $p->price }}')" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-black py-2 rounded-xl border border-amber-200/80 transition shadow-sm">
-                                    💬 Tawar
-                                </button>
+                        <p class="mt-1 text-base sm:text-lg font-bold text-emerald-700 tabular-nums">Rp{{ number_format($p->price, 0, ',', '.') }}</p>
 
-                                @if(strtolower($p->status) == 'available')
-                                    <button onclick="openBookingModal('{{ $p->id }}', '{{ $p->nama_barang ?? $p->title }}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-2 rounded-xl transition shadow-md">
-                                        ⚡ Booking
+                        @if($isAvailable && !$isOwn)
+                            <p class="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span> Bisa nego via chat
+                            </p>
+                        @endif
+
+                        <p class="mt-1 text-[11px] text-slate-500 truncate">📍 {{ $p->user->lokasi_lapak ?? 'Batam' }} · {{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
+
+                        <div class="mt-auto pt-2.5 flex gap-1.5">
+                            @if($isOwn)
+                                <span class="w-full text-center text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg py-2">Barang kamu</span>
+                            @else
+                                <a href="{{ route('chat.index', ['user_id' => $p->user_id, 'product_id' => $p->id]) }}"
+                                   class="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                                   aria-label="Chat penjual tentang {{ $name }}" title="Chat Penjual">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
+                                </a>
+                                @if($isAvailable)
+                                    <button type="button" data-url="{{ route('product.book', $p->id) }}" data-name="{{ $name }}" onclick="openBookingModal(this)"
+                                            class="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold">
+                                        Booking COD
                                     </button>
                                 @else
-                                    <button disabled class="w-full bg-slate-100 text-slate-400 text-xs font-bold py-2 rounded-xl cursor-not-allowed border border-slate-200">
-                                        🔒 Booked
+                                    <button type="button" disabled class="flex-1 h-9 rounded-lg bg-slate-100 text-slate-400 text-xs sm:text-sm font-semibold cursor-not-allowed">
+                                        Di-booking
                                     </button>
                                 @endif
-                            </div>
+                            @endif
                         </div>
                     </div>
-                </div>
+                </article>
             @empty
-                <div class="col-span-full text-center py-16 bg-white rounded-3xl border border-dashed border-slate-300 shadow-sm">
-                    <span class="text-5xl block mb-2">🛍️</span>
-                    <h4 class="font-extrabold text-slate-800 text-base">Katalog Masih Kosong</h4>
-                    <p class="text-xs text-slate-400 mt-1">Belum ada barang preloved yang ditayangkan saat ini.</p>
+                <div class="col-span-full text-center py-16 rounded-xl border border-dashed border-slate-300">
+                    <span class="text-5xl block mb-2" aria-hidden="true">🛍️</span>
+                    <p class="font-bold text-slate-800">
+                        {{ request('search') || $activeKategori !== 'all' ? 'Barang tidak ditemukan' : 'Katalog masih kosong' }}
+                    </p>
+                    <p class="text-sm text-slate-500 mt-1">
+                        @if(request('search') || $activeKategori !== 'all')
+                            Coba kata kunci lain atau <a href="{{ route('home') }}" class="text-emerald-700 font-semibold underline">lihat semua barang</a>.
+                        @else
+                            Belum ada barang preloved yang ditayangkan saat ini.
+                        @endif
+                    </p>
                 </div>
             @endforelse
         </section>
-
     </main>
 
-    <!-- Modal Form Booking COD -->
-    <div id="bookingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-3xl max-w-md w-full shadow-2xl border border-slate-100">
+    <!-- Bottom navigation (mobile) -->
+    <nav class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]" aria-label="Navigasi bawah">
+        <div class="grid grid-cols-5 text-[11px] font-semibold">
+            <a href="{{ route('home') }}" class="flex flex-col items-center gap-0.5 py-2 {{ request()->routeIs('home') && $activeKategori === 'all' ? 'text-emerald-700' : 'text-slate-500' }}">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5Z"/></svg>
+                Beranda
+            </a>
+            <a href="#kategori" class="flex flex-col items-center gap-0.5 py-2 {{ $activeKategori !== 'all' ? 'text-emerald-700' : 'text-slate-500' }}">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>
+                Kategori
+            </a>
+            <a href="{{ route('chat.index') }}" class="relative flex flex-col items-center gap-0.5 py-2 text-slate-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
+                @if($unreadCount > 0)
+                    <span class="absolute top-1 left-1/2 ml-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+                @endif
+                Chat
+            </a>
+            <a href="{{ $transaksiUrl }}" class="flex flex-col items-center gap-0.5 py-2 text-slate-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16l-3-2-2 2-2-2-2 2-2-2-3 2V4Z"/><path d="M9 9h6M9 13h6"/></svg>
+                Transaksi
+            </a>
+            <a href="{{ auth()->check() ? route('profile.edit') : route('login') }}" class="flex flex-col items-center gap-0.5 py-2 text-slate-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                {{ auth()->check() ? 'Profil' : 'Masuk' }}
+            </a>
+        </div>
+    </nav>
+
+    <!-- Modal Booking COD -->
+    <div id="bookingModal" class="fixed inset-0 bg-slate-900/60 hidden items-end sm:items-center justify-center z-50 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="bookingTitle">
+        <div class="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 shadow-xl">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-sm font-black text-slate-900">⚡ Atur Janji COD & Kunci Barang</h3>
-                <button onclick="document.getElementById('bookingModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+                <h3 id="bookingTitle" class="text-base font-bold text-slate-900">Atur Janji COD</h3>
+                <button type="button" onclick="closeBookingModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl" aria-label="Tutup">&times;</button>
             </div>
 
             <form id="bookingForm" method="POST" action="" class="space-y-3">
                 @csrf
                 <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Nama Barang</label>
-                    <input type="text" id="modalProductName" disabled class="w-full bg-slate-100 border border-slate-200 rounded-xl p-2.5 text-xs font-extrabold text-emerald-800">
+                    <label for="modalProductName" class="block text-sm font-semibold text-slate-700 mb-1">Barang</label>
+                    <input type="text" id="modalProductName" disabled class="w-full bg-slate-100 border-slate-200 rounded-lg text-sm font-semibold text-emerald-800">
                 </div>
                 <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Lokasi Pertemuan COD (Batam)</label>
-                    <input type="text" name="lokasi_cod" placeholder="Contoh: Nagoya Hill / Mega Mall" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:ring-2 focus:ring-emerald-500">
+                    <label for="lokasi_cod" class="block text-sm font-semibold text-slate-700 mb-1">Lokasi pertemuan COD</label>
+                    <input type="text" id="lokasi_cod" name="lokasi_cod" placeholder="Contoh: Nagoya Hill / Mega Mall" required class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-extrabold text-slate-700 mb-1">Jadwal & Waktu COD</label>
-                    <input type="datetime-local" name="waktu_cod" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-medium focus:ring-2 focus:ring-emerald-500">
+                    <label for="waktu_cod" class="block text-sm font-semibold text-slate-700 mb-1">Jadwal COD</label>
+                    <input type="datetime-local" id="waktu_cod" name="waktu_cod" required class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">
                 </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl transition text-xs shadow-md uppercase tracking-wider mt-2">
-                    Dapatkan Token QR & Kunci Barang
+                <p class="text-xs text-slate-500">Barang akan dikunci untukmu dan kamu mendapat token QR untuk ditunjukkan ke penjual saat COD.</p>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm">
+                    Booking & Dapatkan Token QR
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Modal Tawar Harga -->
-    <div id="negoModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-3xl max-w-sm w-full shadow-2xl text-center border border-slate-100">
-            <h3 class="text-sm font-black text-slate-900 mb-1">💬 Fitur Tawar Harga</h3>
-            <p id="negoItemName" class="text-xs text-emerald-700 font-extrabold mb-3"></p>
-
-            <div class="mb-3 text-left">
-                <label class="block text-xs font-extrabold text-slate-700 mb-1">Harga Pasang:</label>
-                <input type="text" id="negoOriginalPrice" disabled class="w-full bg-slate-100 border border-slate-200 rounded-xl p-2 text-xs font-black text-slate-700">
-            </div>
-            <div class="mb-4 text-left">
-                <label class="block text-xs font-extrabold text-slate-700 mb-1">Ajukan Nominal Tawaranmu (Rp):</label>
-                <input type="number" id="negoInputPrice" placeholder="Nominal tawaran..." class="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500">
-            </div>
-
-            <div class="flex gap-2">
-                <button onclick="document.getElementById('negoModal').classList.add('hidden')" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-2.5 rounded-xl transition">
-                    Batal
-                </button>
-                <button onclick="submitNego()" class="w-1/2 bg-amber-500 hover:bg-amber-600 text-gray-950 text-xs font-black py-2.5 rounded-xl transition shadow-md">
-                    Kirim Tawaran
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        function openBookingModal(productId, productName) {
-            document.getElementById('modalProductName').value = productName;
-            document.getElementById('bookingForm').action = "/product/" + productId + "/book";
-            document.getElementById('bookingModal').classList.remove('hidden');
+        function openBookingModal(button) {
+            document.getElementById('modalProductName').value = button.dataset.name;
+            document.getElementById('bookingForm').action = button.dataset.url;
+            const modal = document.getElementById('bookingModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         }
 
-        function openNegoModal(productName, originalPrice) {
-            document.getElementById('negoItemName').innerText = productName;
-            document.getElementById('negoOriginalPrice').value = "Rp " + new Intl.NumberFormat('id-ID').format(originalPrice);
-            document.getElementById('negoModal').classList.remove('hidden');
+        function closeBookingModal() {
+            const modal = document.getElementById('bookingModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
 
-        function submitNego() {
-            const tawaran = document.getElementById('negoInputPrice').value;
-            if(!tawaran) {
-                alert('Silakan masukkan nominal tawaranmu!');
-                return;
-            }
-            alert('Tawaran sebesar Rp ' + new Intl.NumberFormat('id-ID').format(tawaran) + ' telah dikirimkan ke Penjual!');
-            document.getElementById('negoModal').classList.add('hidden');
-        }
+        document.getElementById('bookingModal').addEventListener('click', function (e) {
+            if (e.target === this) closeBookingModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeBookingModal();
+        });
     </script>
 
-    <!-- Floating Chat Component -->
-    @include('components.floating-chat')
+    <!-- Floating chat hanya di desktop; di mobile sudah ada tab Chat di bottom navigation -->
+    <div class="hidden sm:block">
+        @include('components.floating-chat')
+    </div>
 </body>
 </html>

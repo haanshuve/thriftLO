@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Booking;
+use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -37,7 +38,12 @@ class ProductController extends Controller
         $totalBookings = Booking::count();
         $wastePreventedKg = ($totalItems * 0.5) + ($totalBookings * 1.2);
 
-        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings'));
+        $categories = config('thriftlo.categories');
+        $unreadCount = Auth::check()
+            ? Message::where('receiver_id', Auth::id())->where('is_read', false)->count()
+            : 0;
+
+        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories', 'unreadCount'));
     }
 
     public function store(Request $request)
