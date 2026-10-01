@@ -30,7 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/booking/{id}/review', [ReviewController::class, 'store'])->name('review.store');
 
-    // Chat & Negosiasi Harga (Open Price)
+    // Chat: tanya kondisi barang & koordinasi COD (harga fixed, tanpa nego)
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat/send', [ChatController::class, 'store'])->name('chat.send');
 

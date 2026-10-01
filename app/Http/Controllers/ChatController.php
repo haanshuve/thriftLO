@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Message;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\ContactInfo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -67,7 +68,12 @@ class ChatController extends Controller
     {
         $request->validate([
             'receiver_id' => ['required', 'exists:users,id', Rule::notIn([Auth::id()])],
-            'message'     => 'required|string|max:1000',
+            'message'     => ['required', 'string', 'max:1000', function ($attribute, $value, $fail) {
+                // Transaksi harus tetap di dalam platform: tolak nomor HP/WA dan ajakan pindah aplikasi
+                if (is_string($value) && ContactInfo::contains($value)) {
+                    $fail(ContactInfo::WARNING);
+                }
+            }],
             'product_id'  => 'nullable|exists:products,id',
         ], [
             'receiver_id.not_in' => 'Kamu tidak bisa mengirim pesan ke diri sendiri.',

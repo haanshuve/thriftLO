@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Message;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\ContactInfo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -118,10 +119,54 @@ class ChatTest extends TestCase
         $product = $this->product();
 
         $this->actingAs($this->buyer)
-            ->post(route('chat.send'), ['receiver_id' => $this->seller->id, 'product_id' => $product->id, 'message' => 'Bisa nego?'])
+            ->post(route('chat.send'), ['receiver_id' => $this->seller->id, 'product_id' => $product->id, 'message' => 'Ada minus/cacat?'])
             ->assertRedirect(route('chat.index', ['user_id' => $this->seller->id, 'product_id' => $product->id]));
 
-        $this->assertDatabaseHas('messages', ['sender_id' => $this->buyer->id, 'receiver_id' => $this->seller->id, 'product_id' => $product->id, 'message' => 'Bisa nego?']);
+        $this->assertDatabaseHas('messages', ['sender_id' => $this->buyer->id, 'receiver_id' => $this->seller->id, 'product_id' => $product->id, 'message' => 'Ada minus/cacat?']);
+    }
+
+    public function test_message_with_phone_number_is_blocked_with_warning(): void
+    {
+        $chatUrl = route('chat.index', ['user_id' => $this->seller->id]);
+
+        $this->actingAs($this->buyer)->from($chatUrl)
+            ->post(route('chat.send'), ['receiver_id' => $this->seller->id, 'message' => 'WA aku aja 0812 3456 7890'])
+            ->assertRedirect($chatUrl)
+            ->assertSessionHasErrors(['message' => ContactInfo::WARNING]);
+
+        $this->assertSame(0, Message::count());
+
+        // Peringatan tampil di percakapan, teks tetap ada di input supaya bisa diperbaiki
+        $this->actingAs($this->buyer)->followingRedirects()->from($chatUrl)
+            ->post(route('chat.send'), ['receiver_id' => $this->seller->id, 'message' => 'minta no hp nya'])
+            ->assertSee('Demi keamanan, pesan berisi nomor HP/WhatsApp')
+            ->assertSee('value="minta no hp nya"', false);
+    }
+
+    public function test_old_messages_with_phone_number_are_masked(): void
+    {
+        $this->message($this->seller, $this->buyer, 'Hubungi 081234567890 ya');
+
+        $this->actingAs($this->buyer)->get(route('chat.index', ['user_id' => $this->seller->id]))->assertOk()
+            ->assertSee('Hubungi [nomor disembunyikan] ya')
+            ->assertDontSee('081234567890');
+    }
+
+    public function test_chat_no_longer_offers_price_negotiation(): void
+    {
+        $this->actingAs($this->buyer)->get(route('chat.index', ['user_id' => $this->seller->id]))->assertOk()
+            ->assertDontSee('Bisa nego?')
+            ->assertDontSee('tawar harga')
+            ->assertSee('Jangan bagikan nomor HP/WA');
+    }
+
+    public function test_product_cards_no_longer_mention_negotiation(): void
+    {
+        $this->product();
+
+        $this->actingAs($this->buyer)->get('/')->assertOk()
+            ->assertSee('Jaket Denim')
+            ->assertDontSee('nego', false);
     }
 
     public function test_cannot_chat_with_yourself(): void

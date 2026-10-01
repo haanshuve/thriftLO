@@ -56,7 +56,7 @@
                                     <span class="flex items-center justify-between gap-2 mt-0.5">
                                         <span class="text-xs truncate {{ $conv['unread'] ? 'text-slate-800 font-medium' : 'text-slate-500' }}">
                                             @if($last)
-                                                {{ (int) $last->sender_id === $me ? 'Kamu: ' : '' }}{{ $last->message }}
+                                                {{ (int) $last->sender_id === $me ? 'Kamu: ' : '' }}{{ \App\Support\ContactInfo::mask($last->message) }}
                                             @else
                                                 <span class="italic">Percakapan baru</span>
                                             @endif
@@ -139,7 +139,7 @@
 
                             <div class="flex {{ $mine ? 'justify-end' : 'justify-start' }}">
                                 <div class="max-w-[80%] sm:max-w-md rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-sm {{ $mine ? 'bg-emerald-600 text-white rounded-br-md' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-md' }}">
-                                    <p class="whitespace-pre-line break-words">{{ $m->message }}</p>
+                                    <p class="whitespace-pre-line break-words">{{ \App\Support\ContactInfo::mask($m->message) }}</p>
                                     <p class="mt-0.5 text-[10px] text-right {{ $mine ? 'text-emerald-100' : 'text-slate-400' }}">
                                         {{ $m->created_at->format('H:i') }}
                                         @if($mine)
@@ -152,7 +152,7 @@
                             <div class="h-full flex flex-col items-center justify-center text-center px-6">
                                 <p class="text-4xl mb-2" aria-hidden="true">👋</p>
                                 <p class="font-semibold text-slate-800">Mulai percakapan dengan {{ $displayName($activeContact) }}</p>
-                                <p class="text-sm text-slate-500 mt-1">Tanyakan kondisi barang, tawar harga, atau atur lokasi COD.</p>
+                                <p class="text-sm text-slate-500 mt-1">Tanyakan kondisi barang, atau atur lokasi dan waktu COD.</p>
                             </div>
                         @endforelse
                     </div>
@@ -166,13 +166,18 @@
                         @endif
 
                         <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2" aria-label="Balasan cepat">
-                            @foreach(['Halo, barangnya masih ada?', 'Bisa nego?', 'Bisa COD di mana?', 'Boleh minta foto/video detail?'] as $quick)
+                            @foreach(['Halo, barangnya masih ada?', 'Ada minus/cacat?', 'Bisa COD di mana?', 'Boleh minta foto/video detail?'] as $quick)
                                 <button type="button" onclick="useQuickReply(this)" class="shrink-0 text-xs font-medium text-emerald-700 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 rounded-full px-3 py-1">{{ $quick }}</button>
                             @endforeach
                         </div>
 
                         @error('message')
-                            <p class="text-sm text-rose-600 mb-1" role="alert">{{ $message }}</p>
+                            <div class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-2 text-sm text-amber-900" role="alert">
+                                <span aria-hidden="true">🛡️</span>
+                                <p>{{ $message }}</p>
+                            </div>
+                        @else
+                            <p class="text-[11px] text-slate-400 mb-1.5">🛡️ Harga sesuai yang tertera. Jangan bagikan nomor HP/WA, transaksi tetap di thriftLO biar aman.</p>
                         @enderror
 
                         <div class="flex items-end gap-2">
@@ -188,7 +193,7 @@
                     <div class="flex-1 flex flex-col items-center justify-center text-center px-8">
                         <p class="text-5xl mb-3" aria-hidden="true">💬</p>
                         <p class="font-semibold text-slate-800">Pilih percakapan</p>
-                        <p class="text-sm text-slate-500 mt-1 max-w-sm">Pilih kontak di sebelah kiri untuk melanjutkan diskusi, tawar harga, atau atur jadwal COD.</p>
+                        <p class="text-sm text-slate-500 mt-1 max-w-sm">Pilih kontak di sebelah kiri untuk tanya kondisi barang atau atur jadwal COD.</p>
                     </div>
                 @endif
             </section>

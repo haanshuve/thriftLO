@@ -18,7 +18,7 @@
             <section class="rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-600 text-white px-4 py-4 sm:px-8 sm:py-7 flex items-center justify-between gap-3 sm:gap-6 shadow-lg shadow-emerald-900/10">
                 <div class="min-w-0">
                     <h1 class="text-base sm:text-3xl font-black leading-tight tracking-tight">Selamatkan barang bagus dari tumpukan lemari.</h1>
-                    <p class="hidden sm:block text-sm sm:text-base text-emerald-50 mt-2 max-w-xl">Preloved pilihan dari penjual terverifikasi di Batam. Nego santai lewat chat, ketemuan, bayar di tempat.</p>
+                    <p class="hidden sm:block text-sm sm:text-base text-emerald-50 mt-2 max-w-xl">Preloved pilihan dari penjual terverifikasi di Batam. Harga jelas, tanya kondisi lewat chat, ketemuan, bayar di tempat.</p>
                 </div>
                 <div class="flex gap-3 sm:gap-6 shrink-0 text-right sm:text-left" title="Perkiraan dari jumlah barang yang ditayangkan dan dibooking">
                     <div>
@@ -131,12 +131,6 @@
 
                                 <p class="mt-1 text-base sm:text-lg font-bold text-emerald-700 tabular-nums">Rp{{ number_format($p->price, 0, ',', '.') }}</p>
 
-                                @if($isAvailable && !$isOwn)
-                                    <p class="mt-0.5 text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span> Bisa nego
-                                    </p>
-                                @endif
-
                                 <p class="mt-1 text-[11px] text-slate-500 truncate">📍 {{ $p->user->lokasi_lapak ?? 'Batam' }} · {{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
 
                                 <div class="mt-auto pt-2.5 flex gap-1.5">
@@ -145,7 +139,7 @@
                                     @else
                                         <a href="{{ route('chat.index', ['user_id' => $p->user_id, 'product_id' => $p->id]) }}"
                                            class="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition active:scale-90 motion-reduce:transform-none"
-                                           aria-label="Mulai nego {{ $name }} lewat chat" title="Mulai nego">
+                                           aria-label="Tanya penjual soal {{ $name }}" title="Tanya penjual">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
                                         </a>
                                         @if($isAvailable)
