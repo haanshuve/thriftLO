@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pengiriman (penjual di luar Batam)
     Route::post('/product/{product}/checkout', [OrderController::class, 'store'])->name('order.store');
     Route::patch('/seller/order/{order}/ship', [OrderController::class, 'ship'])->name('order.ship');
+    Route::patch('/order/{order}/confirm', [OrderController::class, 'confirm'])->name('order.confirm');
 
     // Langganan penjual (Rp5.000/bulan untuk produk unlimited)
     Route::get('/seller/langganan', [SubscriptionController::class, 'show'])->name('subscription.show');
@@ -37,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Tiket Saya & Review Booking
     Route::get('/my-bookings', function() {
+        \App\Models\Order::releaseOverdue();
         $bookings = \App\Models\Booking::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
         $orders = \App\Models\Order::with('product.user')->where('user_id', Auth::id())->latest()->get();
         return view('my-bookings', compact('bookings', 'orders'));

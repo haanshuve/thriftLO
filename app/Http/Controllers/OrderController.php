@@ -76,4 +76,18 @@ class OrderController extends Controller
 
         return back()->with('success', 'Pesanan "' . $order->product->title . '" ditandai sudah dikirim.');
     }
+
+    // Pembeli konfirmasi barang diterima: dana escrow cair ke penjual (dipotong komisi platform)
+    public function confirm(Order $order)
+    {
+        abort_unless((int) $order->user_id === (int) Auth::id(), 403);
+
+        if (!$order->release(Order::RELEASED_BY_BUYER)) {
+            return back()->with('error', $order->status === Order::AWAITING_SHIPMENT
+                ? 'Pesanan ini belum dikirim penjual.'
+                : 'Pesanan ini sudah selesai sebelumnya.');
+        }
+
+        return back()->with('success', 'Terima kasih! Pesanan "' . $order->product->title . '" selesai dan dana sudah diteruskan ke penjual.');
+    }
 }

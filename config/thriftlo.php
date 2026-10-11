@@ -66,4 +66,15 @@ return [
         'simulate_payment'   => (bool) env('SUBSCRIPTION_SIMULATION', env('APP_ENV') !== 'production'),
     ],
 
+    /*
+    | Escrow pesanan Kirim. Dana pembeli ditahan sampai pembeli konfirmasi barang diterima,
+    | atau otomatis cair auto_release_days hari setelah penjual menandai dikirim.
+    | platform_fee: komisi tetap per transaksi Kirim, dipotong dari dana yang cair ke
+    | penjual (tidak ditambahkan ke tagihan pembeli).
+    */
+    'escrow' => [
+        'auto_release_days' => 3,
+        'platform_fee'      => 3000,
+    ],
+
 ];

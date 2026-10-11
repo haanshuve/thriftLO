@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -26,7 +27,13 @@ class AdminController extends Controller
             ->when($status === 'pending', fn ($q) => $q->oldest(), fn ($q) => $q->latest('updated_at'))
             ->get();
 
-        return view('admin.sellers', compact('sellers', 'status', 'counts'));
+        // Pendapatan komisi Kirim: hanya dari pesanan yang dananya sudah cair ke penjual
+        Order::releaseOverdue();
+        $commission = Order::whereNotNull('released_at')
+            ->selectRaw('COUNT(*) as orders, COALESCE(SUM(biaya_platform), 0) as total')
+            ->first();
+
+        return view('admin.sellers', compact('sellers', 'status', 'counts', 'commission'));
     }
 
     // Aksi untuk Menyetujui (Verify) Penjual

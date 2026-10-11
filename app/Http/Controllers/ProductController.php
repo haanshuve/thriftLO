@@ -244,6 +244,7 @@ class ProductController extends Controller
                 ->slice((int) config('thriftlo.subscription.free_product_limit'))->pluck('id')->all();
 
         // Pesanan lewat pengiriman untuk barang milik penjual
+        Order::releaseOverdue();
         $myOrders = Order::with(['product', 'user'])
             ->whereHas('product', fn ($q) => $q->where('user_id', $user->id))
             ->latest()->get();

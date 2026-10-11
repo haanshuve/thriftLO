@@ -211,13 +211,30 @@
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-start justify-between gap-2">
                                         <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ $op->title }}</p>
-                                        <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $awaiting ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800' }}">{{ $order->statusLabel() }}</span>
+                                        <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $awaiting ? 'bg-amber-100 text-amber-800' : ($order->isReleased() ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800') }}">{{ $order->statusLabel() }}</span>
                                     </div>
                                     <p class="text-xs text-slate-500 mt-0.5">Pembeli: <span class="font-medium text-slate-700">{{ $order->user->name ?? '-' }}</span> · {{ $order->created_at->format('d M Y, H:i') }}</p>
                                     <p class="text-xs text-slate-500 mt-0.5">🚚 {{ $order->courier }} · Ongkir Rp{{ number_format($order->shipping_cost, 0, ',', '.') }} · <span class="font-semibold text-slate-700">Total Rp{{ number_format($order->total_price, 0, ',', '.') }}</span></p>
                                     <p class="text-xs text-slate-500 mt-0.5 whitespace-pre-line">🏠 {{ $order->shipping_address }}</p>
                                     @if($order->shipped_at)
                                         <p class="text-xs text-slate-400 mt-0.5">Dikirim {{ $order->shipped_at->format('d M Y, H:i') }}</p>
+                                    @endif
+
+                                    @if($order->isReleased())
+                                        <!-- Dana escrow sudah cair: rincian potongan komisi -->
+                                        <div class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs">
+                                            <p class="font-semibold text-emerald-800">💰 Dana sudah cair ke kamu · {{ $order->released_at->format('d M Y, H:i') }}</p>
+                                            <dl class="mt-1 space-y-0.5 text-slate-600">
+                                                <div class="flex justify-between gap-3"><dt>Total transaksi</dt><dd class="tabular-nums">Rp{{ number_format($order->total_price, 0, ',', '.') }}</dd></div>
+                                                <div class="flex justify-between gap-3"><dt>Komisi platform</dt><dd class="tabular-nums">−Rp{{ number_format($order->biaya_platform, 0, ',', '.') }}</dd></div>
+                                                <div class="flex justify-between gap-3 border-t border-emerald-200 pt-0.5 font-bold text-emerald-800"><dt>Diterima bersih</dt><dd class="tabular-nums">Rp{{ number_format($order->sellerPayout(), 0, ',', '.') }}</dd></div>
+                                            </dl>
+                                            <p class="mt-1 text-[11px] text-slate-500">{{ $order->release_method === \App\Models\Order::RELEASED_BY_BUYER ? 'Pembeli sudah konfirmasi barang diterima.' : 'Cair otomatis karena pembeli tidak konfirmasi dalam ' . config('thriftlo.escrow.auto_release_days') . ' hari.' }}</p>
+                                        </div>
+                                    @elseif($order->shipped_at)
+                                        <p class="mt-2 rounded-lg bg-sky-50 border border-sky-200 px-3 py-2 text-xs text-sky-900">
+                                            🔒 Dana ditahan thriftLO sampai pembeli konfirmasi barang diterima, atau cair otomatis {{ $order->autoReleaseAt()->format('d M Y, H:i') }}.
+                                        </p>
                                     @endif
                                 </div>
                             </div>

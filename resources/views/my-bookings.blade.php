@@ -47,7 +47,7 @@
                     <article class="rounded-xl border border-slate-200 bg-white overflow-hidden">
                         <div class="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50/60">
                             <p class="text-sm font-semibold text-slate-700 truncate">🏬 {{ $op->user->nama_toko ?? $op->user->name ?? 'Penjual' }}</p>
-                            <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $awaiting ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800' }}">{{ $order->statusLabel() }}</span>
+                            <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $awaiting ? 'bg-amber-100 text-amber-800' : ($order->isReleased() ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800') }}">{{ $order->statusLabel() }}</span>
                         </div>
                         <div class="p-4 flex gap-3">
                             <img src="{{ $imgSrc($op) }}" alt="" class="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover bg-slate-100 shrink-0"
@@ -60,6 +60,22 @@
                                 <p>{{ $awaiting ? 'Dipesan ' . $order->created_at->format('d M Y, H:i') . ', menunggu penjual mengirim.' : 'Dikirim ' . $order->shipped_at?->format('d M Y, H:i') . '.' }}</p>
                             </div>
                         </div>
+                        @if($order->isReleased())
+                            <p class="mx-4 mb-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-800">
+                                ✅ Pesanan selesai {{ $order->released_at->format('d M Y, H:i') }}. Dana sudah diteruskan ke penjual.
+                            </p>
+                        @elseif(!$awaiting)
+                            <!-- Escrow: dana dipegang thriftLO sampai pembeli konfirmasi -->
+                            <div class="mx-4 mb-3 rounded-lg bg-sky-50 border border-sky-200 px-3 py-2.5 text-xs text-sky-900 space-y-2">
+                                <p>🔒 Pembayaranmu masih ditahan thriftLO. Sudah terima barangnya dan sesuai? Konfirmasi supaya dana diteruskan ke penjual. Kalau tidak dikonfirmasi, dana cair otomatis {{ $order->autoReleaseAt()->format('d M Y, H:i') }}.</p>
+                                <form action="{{ route('order.confirm', $order) }}" method="POST"
+                                      onsubmit="return confirm('Konfirmasi barang &quot;{{ addslashes($op->title) }}&quot; sudah diterima? Dana akan diteruskan ke penjual dan tidak bisa dibatalkan.')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="w-full h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Barang Sudah Diterima</button>
+                                </form>
+                            </div>
+                        @endif
                         <div class="px-4 pb-4">
                             <a href="{{ route('chat.index', ['user_id' => $op->user_id, 'product_id' => $op->id]) }}"
                                class="flex items-center justify-center gap-2 h-10 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold">

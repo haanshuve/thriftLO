@@ -162,6 +162,11 @@
                                 <div class="flex justify-between border-t border-slate-200 pt-1 font-bold text-slate-900"><dt>Total</dt><dd id="totalText" class="tabular-nums">{{ $rupiah($price) }}</dd></div>
                             </dl>
 
+                            {{-- Escrow: pembeli tidak dikenai biaya tambahan, komisi dipotong dari penjual --}}
+                            <p class="rounded-lg bg-sky-50 border border-sky-200 px-3 py-2.5 text-xs text-sky-900 leading-relaxed">
+                                🔒 <span class="font-semibold">Pembayaran aman.</span> Uangmu ditahan thriftLO dulu dan baru diteruskan ke penjual setelah kamu konfirmasi barang diterima. Kalau tidak dikonfirmasi, dana diteruskan otomatis {{ config('thriftlo.escrow.auto_release_days') }} hari setelah barang dikirim.
+                            </p>
+
                             @auth
                                 <button type="submit" class="w-full h-11 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold transition active:scale-[0.98] disabled:opacity-70 motion-reduce:transform-none">
                                     Checkout

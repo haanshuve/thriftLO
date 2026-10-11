@@ -24,6 +24,19 @@
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">✅ {{ session('success') }}</div>
         @endif
 
+        <!-- Pendapatan platform dari komisi Kirim (terpisah dari langganan dan COD) -->
+        @isset($commission)
+            <section aria-labelledby="judulKomisi" class="rounded-xl border border-slate-200 bg-white px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 id="judulKomisi" class="text-sm font-semibold text-slate-700">Pendapatan komisi Kirim</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Rp{{ number_format(config('thriftlo.escrow.platform_fee'), 0, ',', '.') }} per transaksi, dari {{ number_format($commission->orders, 0, ',', '.') }} pesanan yang dananya sudah cair. Belum termasuk langganan dan COD.
+                    </p>
+                </div>
+                <p class="text-xl font-bold text-emerald-700 tabular-nums">Rp{{ number_format($commission->total, 0, ',', '.') }}</p>
+            </section>
+        @endisset
+
         <!-- Tab status -->
         <nav class="flex border-b border-slate-200" aria-label="Status verifikasi">
             @foreach($tabs as $key => $label)
