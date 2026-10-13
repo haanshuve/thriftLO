@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -23,6 +24,8 @@ class User extends Authenticatable
     'name',
     'email',
     'google_id',
+    'google_avatar_url',
+    'avatar_path',
     'password',
     'role',
     'phone_number',
@@ -65,6 +68,26 @@ class User extends Authenticatable
     }
 
     // Lokasi lapak dari dropdown registrasi/profil; semua pilihan selain "Luar Batam" boleh COD
+    protected static function booted(): void
+    {
+        // Akun dihapus (oleh pemilik atau admin): foto profilnya ikut dihapus dari volume
+        static::deleted(function (User $user) {
+            if ($user->avatar_path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+        });
+    }
+
+    // Foto unggahan sendiri lebih diutamakan daripada foto akun Google
+    public function avatarUrl(): ?string
+    {
+        if ($this->avatar_path) {
+            return asset('storage/' . $this->avatar_path);
+        }
+
+        return $this->google_avatar_url ?: null;
+    }
+
     public function isInBatam(): bool
     {
         return SellerLocation::isBatam($this->lokasi_lapak);

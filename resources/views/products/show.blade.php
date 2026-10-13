@@ -52,9 +52,7 @@
 
                 <!-- Penjual -->
                 <div class="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
-                    <span class="w-10 h-10 shrink-0 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center" aria-hidden="true">
-                        {{ strtoupper(substr($seller->nama_toko ?: $seller->name, 0, 1)) }}
-                    </span>
+                    <x-avatar :user="$seller" :name="$seller->nama_toko ?: $seller->name" size="md" />
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-semibold text-slate-900 truncate">
                             {{ $seller->nama_toko ?: $seller->name }}

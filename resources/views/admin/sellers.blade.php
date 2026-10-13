@@ -55,9 +55,7 @@
                 @php $shopName = $seller->nama_toko ?: $seller->name; @endphp
                 <article class="rounded-xl border border-slate-200 bg-white overflow-hidden">
                     <div class="p-4 flex items-start gap-3">
-                        <span class="w-11 h-11 shrink-0 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center" aria-hidden="true">
-                            {{ strtoupper(substr($shopName, 0, 1)) }}
-                        </span>
+                        <x-avatar :user="$seller" :name="$shopName" size="lg" />
                         <div class="flex-1 min-w-0">
                             <h2 class="font-semibold text-slate-900 truncate">{{ $shopName }}</h2>
                             <p class="text-sm text-slate-600 truncate">{{ $seller->name }} · {{ $seller->email }}</p>

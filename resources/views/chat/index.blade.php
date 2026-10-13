@@ -43,9 +43,7 @@
                             <a href="{{ route('chat.index', ['user_id' => $partner->id]) }}"
                                class="flex items-center gap-3 px-4 py-3 transition {{ $isActive ? 'bg-emerald-50' : 'hover:bg-slate-50' }}"
                                @if($isActive) aria-current="page" @endif>
-                                <span class="w-11 h-11 shrink-0 rounded-full {{ $partner->role === 'penjual' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800' }} font-bold flex items-center justify-center" aria-hidden="true">
-                                    {{ strtoupper(substr($displayName($partner), 0, 1)) }}
-                                </span>
+                                <x-avatar :user="$partner" :name="$displayName($partner)" size="lg" :tone="$partner->role === 'penjual' ? 'solid' : 'soft'" />
                                 <span class="flex-1 min-w-0">
                                     <span class="flex items-baseline justify-between gap-2">
                                         <span class="text-sm font-semibold text-slate-900 truncate">{{ $displayName($partner) }}</span>
@@ -87,9 +85,7 @@
                         <a href="{{ route('chat.index') }}" class="md:hidden w-9 h-9 -ml-1 rounded-lg flex items-center justify-center text-slate-600 hover:bg-slate-100" aria-label="Kembali ke daftar chat">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
                         </a>
-                        <span class="w-10 h-10 shrink-0 rounded-full {{ $activeContact->role === 'penjual' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800' }} font-bold flex items-center justify-center" aria-hidden="true">
-                            {{ strtoupper(substr($displayName($activeContact), 0, 1)) }}
-                        </span>
+                        <x-avatar :user="$activeContact" :name="$displayName($activeContact)" size="md" :tone="$activeContact->role === 'penjual' ? 'solid' : 'soft'" />
                         <div class="min-w-0">
                             <h2 class="text-sm font-semibold text-slate-900 truncate">{{ $displayName($activeContact) }}</h2>
                             <p class="text-xs text-slate-500 truncate">{{ $roleLabel($activeContact) }}</p>

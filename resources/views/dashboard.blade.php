@@ -52,9 +52,7 @@
         <!-- Kepala toko -->
         <section class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
-                <div class="w-14 h-14 shrink-0 rounded-xl bg-emerald-600 text-white text-2xl font-black flex items-center justify-center" aria-hidden="true">
-                    {{ strtoupper(substr($user->nama_toko ?: $user->name, 0, 1)) }}
-                </div>
+                <x-avatar :user="$user" :name="$user->nama_toko ?: $user->name" size="xl" />
                 <div class="min-w-0">
                     <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">{{ $user->nama_toko ?: $user->name }}</h1>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">

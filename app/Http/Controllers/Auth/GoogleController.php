@@ -70,6 +70,11 @@ class GoogleController extends Controller
             }
         }
 
+        // Foto Google disimpan sebagai cadangan; foto unggahan sendiri tetap diutamakan (User::avatarUrl)
+        if ($googleUser->getAvatar() && $user->google_avatar_url !== $googleUser->getAvatar()) {
+            $user->forceFill(['google_avatar_url' => $googleUser->getAvatar()])->save();
+        }
+
         Auth::login($user, remember: true);
         request()->session()->regenerate();
 

@@ -54,9 +54,7 @@
 
                 @forelse($widgetContacts as $wc)
                     <a href="{{ route('chat.index', ['user_id' => $wc->id]) }}" class="flex items-center gap-3 p-2.5 bg-white hover:bg-emerald-50/80 rounded-2xl border border-slate-200/60 transition shadow-sm group">
-                        <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs group-hover:bg-emerald-600 group-hover:text-white transition shadow-xs">
-                            {{ strtoupper(substr($wc->name, 0, 1)) }}
-                        </div>
+                        <x-avatar :user="$wc" size="sm" tone="soft" />
                         <div class="flex-1 min-w-0">
                             <h5 class="text-xs font-black text-slate-800 truncate group-hover:text-emerald-700 transition">{{ $wc->name }}</h5>
                             <p class="text-[10px] text-slate-400 truncate">{{ $wc->role == 'penjual' ? '🏬 Penjual Verified' : '🛍️ Pembeli Thrift' }}</p>

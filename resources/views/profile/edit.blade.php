@@ -19,9 +19,7 @@
 
         <!-- Ringkasan akun -->
         <section class="flex items-center gap-4">
-            <span class="w-16 h-16 shrink-0 rounded-full bg-emerald-600 text-white text-2xl font-black flex items-center justify-center" aria-hidden="true">
-                {{ strtoupper(substr($user->name, 0, 1)) }}
-            </span>
+            <x-avatar :user="$user" size="2xl" />
             <div class="min-w-0">
                 <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">{{ $user->name }}</h1>
                 <p class="text-sm text-slate-500 truncate">{{ $user->email }}</p>
@@ -77,6 +75,10 @@
                 </button>
             </form>
         </nav>
+
+        <section id="foto-profil" class="rounded-xl border border-slate-200 p-4 sm:p-6">
+            @include('profile.partials.update-avatar-form')
+        </section>
 
         <section class="rounded-xl border border-slate-200 p-4 sm:p-6">
             @include('profile.partials.update-profile-information-form')

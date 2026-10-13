@@ -65,7 +65,7 @@
                     </a>
                     <span class="hidden sm:block w-px h-6 bg-slate-200"></span>
                     <a href="{{ route('profile.edit') }}" class="hidden sm:flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-100">
-                        <span class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                        <x-avatar :user="auth()->user()" size="xs" tone="soft" />
                         <span class="max-w-[110px] truncate text-slate-700">{{ auth()->user()->name }}</span>
                     </a>
                     <form method="POST" action="{{ route('logout') }}" class="hidden sm:block">
