@@ -137,11 +137,21 @@
 
                                 <p class="mt-1 text-[11px] text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $p->user->locationLabel() }} ·{{ $p->user->nama_toko ?? $p->user->name ?? 'Penjual' }}</p>
 
-                                @if($canCod && $isAvailable && !empty($p->shippingOptions()))
-                                    {{-- Penjual Batam yang juga melayani pengiriman: pembeli luar Batam tetap bisa beli --}}
-                                    <a href="{{ $detailUrl }}#pengiriman" class="mt-1.5 self-start inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-sky-700 hover:bg-sky-100" title="Bisa dikirim ke luar Batam">
-                                        🚚 Bisa Kirim
-                                    </a>
+                                @php $canShipToo = $canCod && $isAvailable && !empty($p->shippingOptions()); @endphp
+                                @if($canShipToo || $p->hasVideoProof())
+                                    <div class="mt-1.5 flex flex-wrap gap-1">
+                                        @if($canShipToo)
+                                            {{-- Penjual Batam yang juga melayani pengiriman: pembeli luar Batam tetap bisa beli --}}
+                                            <a href="{{ $detailUrl }}#pengiriman" class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-sky-700 hover:bg-sky-100" title="Bisa dikirim ke luar Batam">
+                                                🚚 Bisa Kirim
+                                            </a>
+                                        @endif
+                                        @if($p->hasVideoProof())
+                                            <a href="{{ $detailUrl }}#videoProofTitle" class="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-violet-700 hover:bg-violet-100" title="Penjual mengunggah video kondisi asli barang">
+                                                🎥 Ada Video Proof
+                                            </a>
+                                        @endif
+                                    </div>
                                 @endif
 
                                 <div class="mt-auto pt-2.5 flex gap-1.5">

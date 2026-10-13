@@ -228,7 +228,17 @@
                         <p class="mt-1 text-sm text-slate-600 whitespace-pre-line">{{ $product->description }}</p>
                     </div>
                 @endif
-                @if($product->video_proof)
+                @if($product->hasVideoProof())
+                    <section aria-labelledby="videoProofTitle">
+                        <h2 id="videoProofTitle" class="font-semibold text-slate-900">🎥 Video Proof dari penjual</h2>
+                        <p class="text-xs text-slate-500">Rekaman kondisi asli barang yang diunggah penjual.</p>
+                        <video src="{{ $product->videoProofUrl() }}" controls preload="metadata" playsinline
+                               class="mt-2 w-full max-h-96 rounded-xl bg-slate-900 border border-slate-200">
+                            Browser kamu tidak bisa memutar video ini. <a href="{{ $product->videoProofUrl() }}" class="underline">Unduh videonya</a>.
+                        </video>
+                    </section>
+                @elseif($product->video_proof)
+                    {{-- Produk lama: video proof masih berupa link eksternal --}}
                     <a href="{{ $product->video_proof }}" target="_blank" rel="noopener" class="inline-block text-sm font-semibold text-sky-700 hover:underline">🎥 Lihat video kondisi barang</a>
                 @endif
             </div>

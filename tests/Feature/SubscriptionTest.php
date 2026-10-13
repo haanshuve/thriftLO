@@ -48,6 +48,7 @@ class SubscriptionTest extends TestCase
             'harga' => 75000,
             'grade' => config('thriftlo.grades')[0],
             'image' => UploadedFile::fake()->image('jaket.jpg'),
+            'video_proof' => UploadedFile::fake()->create('jaket.mp4', 2048, 'video/mp4'),
         ]);
     }
 

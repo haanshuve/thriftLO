@@ -21,6 +21,7 @@ class Product extends Model
         'image_path',
         'image_url',
         'video_proof',
+        'video_proof_path',
         'shipping_options',
         'status',
     ];
@@ -42,6 +43,17 @@ class Product extends Model
     public function shippingOptions(): array
     {
         return $this->shipping_options ?? [];
+    }
+
+    // Video Proof hasil unggahan penjual (disk public); produk lama mungkin hanya punya link di video_proof
+    public function hasVideoProof(): bool
+    {
+        return !empty($this->video_proof_path);
+    }
+
+    public function videoProofUrl(): ?string
+    {
+        return $this->hasVideoProof() ? asset('storage/' . $this->video_proof_path) : null;
     }
 
     public function orders()

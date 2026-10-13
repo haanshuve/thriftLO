@@ -34,6 +34,7 @@ class SellerDashboardTest extends TestCase
             'harga' => 650000,
             'grade' => 'Grade A (Like New)',
             'image' => UploadedFile::fake()->image('boots.jpg')->size(3000), // foto HP 3MB
+            'video_proof' => UploadedFile::fake()->create('boots.mp4', 20000, 'video/mp4'),
             'deskripsi' => 'Ukuran 42',
         ], $overrides);
     }

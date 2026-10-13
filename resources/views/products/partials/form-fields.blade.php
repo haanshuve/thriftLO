@@ -54,11 +54,68 @@
     <p class="text-xs text-slate-400 mt-1">JPG, PNG, atau WEBP, maksimal 5MB. Foto persegi tampil paling bagus di katalog.</p>
 </div>
 
+@php
+    $videoMaxMb = (int) config('thriftlo.video_proof.max_mb');
+    $hasVideo = (bool) $product?->hasVideoProof();
+    $videoError = $errors->product->first('video_proof');
+@endphp
 <div>
-    <label for="video_proof_url" class="block text-sm font-semibold text-slate-700 mb-1">Link video proof <span class="font-normal text-slate-400">(opsional)</span></label>
-    <input type="url" id="video_proof_url" name="video_proof_url" value="{{ old('video_proof_url', $product?->video_proof) }}" placeholder="https://youtube.com/..." class="{{ $input }}">
-    <p class="text-xs text-slate-400 mt-1">Video kondisi asli barang membuat pembeli lebih percaya.</p>
+    <label for="video_proof" class="block text-sm font-semibold text-slate-700 mb-1">
+        🎥 Video Proof
+        @if($hasVideo)
+            <span class="font-normal text-slate-400">(kosongkan kalau tidak diganti)</span>
+        @elseif($product)
+            <span class="font-normal text-slate-400">(sangat disarankan)</span>
+        @else
+            <span class="font-normal text-rose-600">(wajib)</span>
+        @endif
+    </label>
+    @if($hasVideo)
+        <video src="{{ $product->videoProofUrl() }}" controls preload="metadata" class="mb-2 w-full max-h-48 rounded-lg bg-slate-900"></video>
+    @endif
+    <input type="file" id="video_proof" name="video_proof" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+           data-max-bytes="{{ $videoMaxMb * 1024 * 1024 }}" @unless($product) required @endunless
+           aria-describedby="video_proof_hint video_proof_error"
+           class="w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+    <p id="video_proof_hint" class="text-xs text-slate-500 mt-1">
+        Rekam video singkat (maks. 60 detik) yang menunjukkan kondisi asli barang. MP4, MOV, atau WEBM, maksimal {{ $videoMaxMb }}MB.
+    </p>
+    <p id="video_proof_error" class="text-xs font-semibold text-rose-600 mt-1 {{ $videoError ? '' : 'hidden' }}" role="alert">{{ $videoError }}</p>
 </div>
+
+<script>
+    // Tolak video yang terlalu besar/format salah sebelum dikirim, supaya penjual tidak menunggu upload yang pasti gagal
+    (function () {
+        const input = document.getElementById('video_proof');
+        const error = document.getElementById('video_proof_error');
+        const allowed = ['mp4', 'mov', 'webm'];
+
+        function check() {
+            const file = input.files[0];
+            let message = '';
+            if (file) {
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!allowed.includes(ext)) {
+                    message = 'Video Proof harus berformat MP4, MOV, atau WEBM.';
+                } else if (file.size > Number(input.dataset.maxBytes)) {
+                    message = 'Ukuran Video Proof ' + (file.size / 1048576).toFixed(1) + 'MB, maksimal {{ $videoMaxMb }}MB. Rekam lebih singkat (maks. 60 detik) atau kecilkan resolusinya.';
+                }
+            }
+            input.setCustomValidity(message);
+            error.textContent = message;
+            error.classList.toggle('hidden', message === '');
+            return message === '';
+        }
+
+        input.addEventListener('change', check);
+        input.form.addEventListener('submit', function (e) {
+            if (!check()) {
+                e.preventDefault();
+                input.focus();
+            }
+        });
+    })();
+</script>
 
 <div>
     <label for="deskripsi" class="block text-sm font-semibold text-slate-700 mb-1">Deskripsi <span class="font-normal text-slate-400">(opsional)</span></label>

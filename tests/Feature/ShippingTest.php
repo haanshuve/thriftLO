@@ -60,6 +60,7 @@ class ShippingTest extends TestCase
             'harga' => 90000,
             'grade' => config('thriftlo.grades')[0],
             'image' => UploadedFile::fake()->image('kemeja.jpg'),
+            'video_proof' => UploadedFile::fake()->create('kemeja.mp4', 2048, 'video/mp4'),
             'shipping_options' => $shipping,
         ]);
     }

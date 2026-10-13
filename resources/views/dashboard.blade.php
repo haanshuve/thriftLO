@@ -289,8 +289,12 @@
                             <h3 class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $item->title }}">{{ $item->title }}</h3>
                             <p class="mt-1 text-base font-bold text-emerald-700 tabular-nums">Rp{{ number_format($item->price, 0, ',', '.') }}</p>
                             <p class="mt-0.5 text-[11px] text-slate-500 truncate">{{ $categories[$item->kategori]['label'] ?? ($item->kategori ?: 'Tanpa kategori') }} · {{ $kondisi }}</p>
-                            @if($item->video_proof)
+                            @if($item->hasVideoProof())
+                                <p class="mt-0.5 text-[11px] font-semibold text-sky-700">🎥 Ada Video Proof</p>
+                            @elseif($item->video_proof)
                                 <a href="{{ $item->video_proof }}" target="_blank" rel="noopener" class="mt-0.5 text-[11px] font-semibold text-sky-700 hover:underline">🎥 Lihat video proof</a>
+                            @else
+                                <a href="{{ route('product.edit', $item->id) }}" class="mt-0.5 text-[11px] font-semibold text-amber-700 hover:underline">⚠️ Tambahkan Video Proof</a>
                             @endif
                             @if($item->shipping_options)
                                 <p class="mt-0.5 text-[11px] text-slate-500">🚚 {{ count($item->shipping_options) }} opsi pengiriman</p>
@@ -347,7 +351,7 @@
                                     <li>{{ $error }}</li>
                                 @endforeach
                             </ul>
-                            <p class="mt-1 text-rose-600">Foto produk perlu dipilih ulang.</p>
+                            <p class="mt-1 text-rose-600">Foto produk dan Video Proof perlu dipilih ulang.</p>
                         </div>
                     @endif
 

@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -57,15 +58,17 @@ class ProductController extends Controller
             return redirect()->route('subscription.show')->with('limit_reached', true);
         }
 
-        $this->validateProduct($request, imageRequired: true);
+        $this->validateProduct($request, isNew: true);
 
         $imagePath = $request->file('image')->store('products', 'public');
+        $videoPath = $request->file('video_proof')->store('product-videos', 'public');
 
         Product::create([
-            'user_id'    => auth()->id(),
-            'image_url'  => $imagePath,
-            'image_path' => $imagePath,
-            'status'     => 'Available',
+            'user_id'          => auth()->id(),
+            'image_url'        => $imagePath,
+            'image_path'       => $imagePath,
+            'video_proof_path' => $videoPath,
+            'status'           => 'Available',
             ...$this->productAttributes($request),
         ]);
 
@@ -101,7 +104,8 @@ class ProductController extends Controller
     {
         $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
 
-        $this->validateProduct($request, imageRequired: false);
+        // Video boleh dikosongkan saat edit: video lama dipertahankan, produk lama tanpa video tetap bisa diedit
+        $this->validateProduct($request, isNew: false);
 
         $attributes = $this->productAttributes($request);
 
@@ -110,17 +114,29 @@ class ProductController extends Controller
             $attributes['image_url'] = $attributes['image_path'] = $request->file('image')->store('products', 'public');
 
             if ($oldImage && !filter_var($oldImage, FILTER_VALIDATE_URL)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($oldImage);
+                Storage::disk('public')->delete($oldImage);
             }
+        }
+
+        $oldVideo = null;
+        if ($request->hasFile('video_proof')) {
+            $oldVideo = $product->video_proof_path;
+            $attributes['video_proof_path'] = $request->file('video_proof')->store('product-videos', 'public');
         }
 
         $product->update($attributes);
 
+        if ($oldVideo) {
+            Storage::disk('public')->delete($oldVideo);
+        }
+
         return redirect()->route('dashboard')->with('success', 'Barang "' . $product->title . '" berhasil diperbarui.');
     }
 
-    private function validateProduct(Request $request, bool $imageRequired): void
+    private function validateProduct(Request $request, bool $isNew): void
     {
+        $videoMaxMb = (int) config('thriftlo.video_proof.max_mb');
+
         // Baris opsi pengiriman yang dibiarkan kosong di form diabaikan
         $request->merge([
             'shipping_options' => collect($request->input('shipping_options', []))
@@ -136,8 +152,9 @@ class ProductController extends Controller
             'harga'           => 'required|numeric|min:0',
             'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
             // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
-            'image'           => [$imageRequired ? 'required' : 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
-            'video_proof_url' => 'nullable|url|max:500',
+            'image'           => [$isNew ? 'required' : 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            // Video Proof wajib untuk barang baru; mov = rekaman kamera iPhone
+            'video_proof'     => [$isNew ? 'required' : 'nullable', 'file', 'mimes:mp4,mov,webm', 'max:' . ($videoMaxMb * 1024)],
             'deskripsi'       => 'nullable|string|max:2000',
             // Penjual di luar Batam tidak bisa COD, jadi wajib menyediakan pengiriman
             'shipping_options'           => [Auth::user()->isInBatam() ? 'nullable' : 'required', 'array', 'max:10'],
@@ -154,7 +171,12 @@ class ProductController extends Controller
             'image.image'          => 'Foto produk harus berupa gambar (JPG, PNG, atau WEBP).',
             'image.mimes'          => 'Foto produk harus berformat JPG, PNG, atau WEBP.',
             'image.max'            => 'Ukuran foto produk maksimal 5MB.',
-            'video_proof_url.url'  => 'Link video proof harus berupa URL yang valid (diawali https://).',
+            'video_proof.required' => 'Video Proof wajib diunggah. Rekam video singkat yang menunjukkan kondisi asli barang.',
+            'video_proof.file'     => 'Video Proof gagal diunggah. Coba pilih ulang videonya.',
+            // File yang melebihi batas upload server dibuang PHP, jadi muncul sebagai gagal unggah, bukan "max"
+            'video_proof.uploaded' => "Video Proof gagal diunggah. Pastikan ukurannya tidak lebih dari {$videoMaxMb}MB lalu coba lagi.",
+            'video_proof.mimes'    => 'Video Proof harus berformat MP4, MOV, atau WEBM.',
+            'video_proof.max'      => "Ukuran Video Proof maksimal {$videoMaxMb}MB. Rekam lebih singkat (maks. 60 detik) atau kecilkan resolusinya.",
             'shipping_options.required'           => 'Lapakmu di luar Batam, jadi tambahkan minimal 1 opsi pengiriman.',
             'shipping_options.max'                => 'Maksimal 10 opsi pengiriman.',
             'shipping_options.*.courier.required' => 'Nama kurir wajib diisi di setiap opsi pengiriman.',
@@ -178,7 +200,6 @@ class ProductController extends Controller
             'kategori'         => $request->kategori,
             'price'            => $request->harga,
             'grade'            => $request->grade,
-            'video_proof'      => $request->video_proof_url,
             'description'      => $request->deskripsi,
             'shipping_options' => $shipping ?: null,
         ];
@@ -284,7 +305,11 @@ class ProductController extends Controller
         $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
 
         if ($product->image_url && !filter_var($product->image_url, FILTER_VALIDATE_URL)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($product->image_url);
+            Storage::disk('public')->delete($product->image_url);
+        }
+
+        if ($product->video_proof_path) {
+            Storage::disk('public')->delete($product->video_proof_path);
         }
 
         $product->delete();
