@@ -19,12 +19,6 @@
             'Completed' => 'bg-emerald-100 text-emerald-800',
             'Cancelled' => 'bg-slate-200 text-slate-600',
         ];
-        $statusCodLabel = [
-            'Pending'   => 'Menunggu COD',
-            'Confirmed' => 'Dikonfirmasi',
-            'Completed' => 'Selesai',
-            'Cancelled' => 'Dibatalkan',
-        ];
         $imgSrc = fn ($p) => filter_var($p->image_url ?? $p->image_path, FILTER_VALIDATE_URL)
             ? ($p->image_url ?? $p->image_path)
             : asset('storage/' . ($p->image_url ?? $p->image_path));
@@ -173,15 +167,41 @@
                                 <div class="flex items-start justify-between gap-2">
                                     <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ $bp->title ?? 'Produk dihapus' }}</p>
                                     <span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full {{ $statusCodClass[$booking->status_cod] ?? 'bg-slate-100 text-slate-600' }}">
-                                        {{ $statusCodLabel[$booking->status_cod] ?? $booking->status_cod }}
+                                        {{ $booking->statusLabel() }}
                                     </span>
                                 </div>
                                 <p class="text-xs text-slate-500 mt-0.5">Pembeli: <span class="font-medium text-slate-700">{{ $booking->user->name ?? '-' }}</span></p>
                                 <p class="text-xs text-slate-500 mt-0.5">
                                     📍 {{ $booking->cod_location }} · ⏰ {{ \Illuminate\Support\Carbon::parse($booking->cod_schedule)->format('d M Y, H:i') }}
                                 </p>
-                                {{-- Token sengaja disamarkan: penjual harus meminta token dari HP pembeli saat COD --}}
-                                <p class="text-[11px] font-mono text-slate-400 mt-1" title="Minta pembeli menunjukkan token QR saat bertemu">TOKEN: TL-••••••••</p>
+                                @if($booking->status_cod === 'Cancelled')
+                                    <p class="mt-1.5 rounded-md bg-slate-50 border border-slate-200 px-2 py-1.5 text-xs text-slate-600">
+                                        {{ $booking->cancelled_by === \App\Models\Booking::CANCELLED_BY_SELLER ? 'Kamu membatalkan' : 'Pembeli membatalkan' }} booking ini{{ $booking->cancelled_at ? ' pada ' . $booking->cancelled_at->format('d M Y, H:i') : '' }}{{ $booking->cancelReasonLabel() ? ' · Alasan: ' . $booking->cancelReasonLabel() : '' }}.
+                                        @if($booking->feeStatusLabel())
+                                            Biaya booking: {{ strtolower($booking->feeStatusLabel()) }}.
+                                        @endif
+                                        @if($booking->cancelled_by === \App\Models\Booking::CANCELLED_BY_BUYER)
+                                            Barang sudah tayang lagi di katalog.
+                                        @endif
+                                    </p>
+                                @elseif($booking->isActive())
+                                    {{-- Token sengaja disamarkan: penjual harus meminta token dari HP pembeli saat COD --}}
+                                    <div class="mt-1 flex items-center justify-between gap-2">
+                                        <p class="text-[11px] font-mono text-slate-400" title="Minta pembeli menunjukkan token QR saat bertemu">TOKEN: TL-••••••••</p>
+                                        <button type="button" onclick="openSellerCancelModal(this)"
+                                                data-url="{{ route('booking.sellerCancel', $booking) }}"
+                                                data-booking-id="{{ $booking->id }}"
+                                                data-product="{{ $bp->title ?? 'Produk' }}"
+                                                data-buyer="{{ $booking->user->name ?? '-' }}"
+                                                data-fee="{{ $booking->booking_fee > 0 ? 'Rp' . number_format($booking->booking_fee, 0, ',', '.') : '' }}"
+                                                class="shrink-0 text-xs font-semibold text-rose-600 hover:underline">
+                                            Batalkan (penjual)
+                                        </button>
+                                    </div>
+                                    @if($errors->sellerCancel->any() && (int) old('booking_id') === $booking->id)
+                                        <p class="mt-1 text-xs text-rose-600" role="alert">{{ $errors->sellerCancel->first() }}</p>
+                                    @endif
+                                @endif
                             </div>
                         </li>
                     @empty
@@ -381,6 +401,103 @@
             });
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') closeUploadModal();
+            });
+        </script>
+    @endif
+
+    @if($isSeller && $myBookings->contains(fn ($b) => $b->isActive()))
+        <!-- Popup pembatalan oleh penjual -->
+        <div id="sellerCancelModal" class="fixed inset-0 bg-slate-900/60 hidden items-end sm:items-center justify-center z-50 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sellerCancelTitle">
+            <div class="animate-fade-up bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 shadow-xl max-h-[92vh] overflow-y-auto">
+                <div class="flex justify-between items-start gap-3 mb-3">
+                    <div>
+                        <h3 id="sellerCancelTitle" class="text-base font-bold text-slate-900">Batalkan booking ini?</h3>
+                        <p class="text-sm text-slate-500 mt-0.5"><span id="sellerCancelProduct" class="font-semibold text-slate-700"></span> · pembeli <span id="sellerCancelBuyer"></span></p>
+                    </div>
+                    <button type="button" onclick="closeSellerCancelModal()" class="w-8 h-8 shrink-0 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl transition" aria-label="Tutup">&times;</button>
+                </div>
+
+                <form id="sellerCancelForm" method="POST" action="" class="space-y-3">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="booking_id" id="sellerCancelBookingId" value="">
+
+                    <p id="sellerCancelFeeNote" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs text-sky-900">
+                        Biaya booking <span id="sellerCancelFee" class="font-semibold"></span> akan dikembalikan ke pembeli dan token QR-nya tidak berlaku lagi.
+                    </p>
+
+                    <fieldset>
+                        <legend class="text-sm font-semibold text-slate-700 mb-1.5">Alasan pembatalan</legend>
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach(\App\Models\Booking::SELLER_CANCEL_REASONS as $value => $label)
+                                <label class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                    <input type="radio" name="alasan" value="{{ $value }}" required class="text-emerald-600 focus:ring-emerald-500" onchange="suggestProductAction(this.value)">
+                                    {{ $label }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend class="text-sm font-semibold text-slate-700 mb-1.5">Setelah dibatalkan, barangnya...</legend>
+                        <div class="space-y-2">
+                            <label class="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="tindakan_produk" value="tayangkan" required class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                                <span><span class="font-semibold">Tayangkan lagi</span><span class="block text-xs text-slate-500">Barang tersedia lagi di katalog untuk pembeli lain.</span></span>
+                            </label>
+                            <label class="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                                <input type="radio" name="tindakan_produk" value="nonaktifkan" required class="mt-0.5 text-emerald-600 focus:ring-emerald-500">
+                                <span><span class="font-semibold">Turunkan dari katalog</span><span class="block text-xs text-slate-500">Barang ditandai tidak tersedia, mis. sudah terjual atau rusak.</span></span>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <div class="flex flex-col-reverse sm:flex-row gap-2 pt-1">
+                        <button type="submit" class="sm:flex-1 h-10 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 text-sm font-semibold">
+                            Ya, batalkan booking
+                        </button>
+                        <button type="button" onclick="closeSellerCancelModal()" class="sm:flex-1 h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">
+                            Tidak jadi
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            function openSellerCancelModal(button) {
+                const d = button.dataset;
+                const form = document.getElementById('sellerCancelForm');
+                form.reset();
+                form.action = d.url;
+                document.getElementById('sellerCancelBookingId').value = d.bookingId;
+                document.getElementById('sellerCancelProduct').textContent = d.product;
+                document.getElementById('sellerCancelBuyer').textContent = d.buyer;
+                document.getElementById('sellerCancelFee').textContent = d.fee;
+                document.getElementById('sellerCancelFeeNote').classList.toggle('hidden', d.fee === '');
+
+                const modal = document.getElementById('sellerCancelModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+
+            function closeSellerCancelModal() {
+                const modal = document.getElementById('sellerCancelModal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+
+            // Saran awal: barang terjual/rusak diturunkan, alasan lain ditayangkan lagi (penjual tetap bisa mengubah)
+            function suggestProductAction(reason) {
+                const action = ['sudah_terjual', 'barang_rusak'].includes(reason) ? 'nonaktifkan' : 'tayangkan';
+                document.querySelector('#sellerCancelForm input[name="tindakan_produk"][value="' + action + '"]').checked = true;
+            }
+
+            document.getElementById('sellerCancelModal').addEventListener('click', function (e) {
+                if (e.target === this) closeSellerCancelModal();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeSellerCancelModal();
             });
         </script>
     @endif

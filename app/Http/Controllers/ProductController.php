@@ -232,9 +232,15 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Barang ini sedang tidak ditayangkan penjualnya.');
         }
 
-        $qrToken = 'TL-' . strtoupper(Str::random(8));
+        // Biaya booking dibayar lewat QRIS (SIMULASI: tombol "Saya sudah bayar" di popup, tanpa payment gateway).
+        // Sebelum membayar belum ada booking yang dibuat, jadi batal di tahap ringkasan/QRIS tidak dikenai apa pun.
+        if (!$request->boolean('qris_paid')) {
+            return redirect()->back()->with('error', 'Selesaikan pembayaran biaya booking lewat QRIS dulu untuk mengunci barangnya.');
+        }
 
-        // Menyimpan booking dengan struktur kolom database cod_location & cod_schedule
+        $qrToken = 'TL-' . strtoupper(Str::random(8));
+        $fee = (int) config('thriftlo.booking.fee');
+
         Booking::create([
             'product_id'   => $product->id,
             'user_id'      => Auth::id(),
@@ -242,11 +248,14 @@ class ProductController extends Controller
             'cod_location' => $request->lokasi_cod,
             'cod_schedule' => $request->waktu_cod,
             'status_cod'   => 'Pending',
+            'booking_fee'  => $fee,
+            'fee_status'   => Booking::FEE_PAID,
+            'paid_at'      => now(),
         ]);
 
         $product->update(['status' => 'Booked']);
 
-        return redirect()->route('bookings.index')->with('success', 'Mantap! Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $qrToken . ' di bawah ini.');
+        return redirect()->route('bookings.index')->with('success', 'Pembayaran biaya booking Rp' . number_format($fee, 0, ',', '.') . ' berhasil. Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $qrToken . ' di bawah ini.');
     }
 
     public function sellerDashboard()
@@ -288,6 +297,10 @@ class ProductController extends Controller
 
         if (!$booking) {
             return redirect()->back()->with('error', 'Token QR tidak ditemukan atau tidak valid!');
+        }
+
+        if ($booking->status_cod === 'Cancelled') {
+            return redirect()->back()->with('error', 'Token QR ini sudah tidak berlaku karena booking-nya dibatalkan.');
         }
 
         if ($booking->status_cod === 'Completed') {

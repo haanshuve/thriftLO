@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\BookingCancellationController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
@@ -35,6 +36,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Booking & Secure COD Smart QR Code
     Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
     Route::post('/seller/verify-qr', [ProductController::class, 'verifyQrCode'])->name('booking.verify');
+
+    // Pembatalan booking COD: oleh pembeli (biaya hangus) atau penjual (biaya dikembalikan)
+    Route::patch('/booking/{booking}/cancel', [BookingCancellationController::class, 'cancelByBuyer'])->name('booking.cancel');
+    Route::patch('/seller/booking/{booking}/cancel', [BookingCancellationController::class, 'cancelBySeller'])->name('booking.sellerCancel');
 
     // Tiket Saya & Review Booking
     Route::get('/my-bookings', function() {

@@ -82,6 +82,15 @@ return [
     | Batas upload PHP (upload_max_filesize & post_max_size) harus di atas max_mb
     | + foto produk (5MB), kalau tidak file ditolak server sebelum sampai validasi.
     */
+    /*
+    | Booking COD. fee: biaya booking yang dibayar pembeli lewat QRIS (masih simulasi)
+    | sebagai komitmen. Tidak dikembalikan kalau pembeli membatalkan; dikembalikan kalau
+    | penjual yang membatalkan.
+    */
+    'booking' => [
+        'fee' => 2000,
+    ],
+
     'video_proof' => [
         'max_mb' => 50,
     ],

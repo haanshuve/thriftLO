@@ -164,7 +164,7 @@
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
                                         </a>
                                         @if($isAvailable && $canCod)
-                                            <button type="button" data-url="{{ route('product.book', $p->id) }}" data-name="{{ $name }}" onclick="openBookingModal(this)"
+                                            <button type="button" data-url="{{ route('product.book', $p->id) }}" data-name="{{ $name }}" data-price="{{ (int) $p->price }}" onclick="openBookingModal(this)"
                                                     class="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 text-white text-xs sm:text-sm font-semibold transition active:scale-95 motion-reduce:transform-none">
                                                 Booking COD
                                             </button>

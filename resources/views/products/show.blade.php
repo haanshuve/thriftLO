@@ -108,10 +108,13 @@
                             <h2 class="font-semibold text-slate-900">Booking COD</h2>
                             <p class="text-sm text-slate-600 mt-0.5">Ketemuan di Batam, cek barangnya, baru bayar di tempat.</p>
                             @auth
-                                <button type="button" data-url="{{ route('product.book', $product->id) }}" data-name="{{ $product->title }}" onclick="openBookingModal(this)"
+                                <button type="button" data-url="{{ route('product.book', $product->id) }}" data-name="{{ $product->title }}" data-price="{{ $price }}" onclick="openBookingModal(this)"
                                         class="mt-3 w-full h-11 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition active:scale-[0.98] motion-reduce:transform-none">
                                     Booking COD
                                 </button>
+                                <p class="mt-2 text-[11px] text-slate-500">
+                                    Biaya booking {{ $rupiah((int) config('thriftlo.booking.fee')) }} dibayar via QRIS untuk mengunci barang dan tidak dapat dikembalikan bila kamu membatalkan.
+                                </p>
                             @else
                                 <a href="{{ route('login') }}" class="mt-3 w-full h-11 inline-flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Masuk untuk booking COD</a>
                             @endauth
