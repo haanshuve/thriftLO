@@ -9,7 +9,7 @@
         $menu = array_filter([
             $user->role === 'penjual' ? ['Toko Saya', route('dashboard'), '🏬'] : null,
             $user->role === 'pembeli' ? ['Tiket Saya', route('bookings.index'), '🎟️'] : null,
-            $user->role === 'admin' ? ['Panel Admin', route('admin.sellers'), '🛡️'] : null,
+            $user->role === 'admin' ? ['Panel Admin', route('admin.dashboard'), '🛡️'] : null,
             ['Chat', route('chat.index'), '💬'],
             ['Request Barang', route('requests.index'), '🔎'],
         ]);

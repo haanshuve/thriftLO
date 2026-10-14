@@ -21,7 +21,7 @@ Artisan::command('thriftlo:make-admin {email}', function (string $email) {
     }
 
     $user->forceFill(['role' => 'admin'])->save();
-    $this->info("{$user->name} ({$email}) sekarang admin. Panel admin: " . route('admin.sellers'));
+    $this->info("{$user->name} ({$email}) sekarang admin. Panel admin: " . route('admin.dashboard'));
 
     return 0;
 })->purpose('Jadikan akun yang sudah terdaftar sebagai admin thriftLO');

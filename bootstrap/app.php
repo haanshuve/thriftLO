@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Percayai header X-Forwarded-* supaya URL asset/route/form tetap https://.
         $middleware->trustProxies(at: '*');
 
+        $middleware->web(append: [
+            \App\Http\Middleware\LogoutDeactivatedUser::class,
+        ]);
+
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
         ]);

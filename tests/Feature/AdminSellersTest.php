@@ -35,7 +35,8 @@ class AdminSellersTest extends TestCase
             ->assertDontSee('Toko Ditolak')
             ->assertSee('✓ Setujui')
             ->assertSee('Tolak verifikasi')
-            ->assertSee('Navigasi bawah', false);
+            ->assertSee('Navigasi admin', false)
+            ->assertDontSee('Navigasi bawah', false);
     }
 
     public function test_pending_queue_lists_longest_waiting_first(): void

@@ -2,6 +2,7 @@
 
 namespace App\View\Components;
 
+use App\Models\Category;
 use App\Models\Message;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\Component;
@@ -26,14 +27,14 @@ class MarketLayout extends Component
         $user = Auth::user();
 
         return view('layouts.market', [
-            'categories'     => config('thriftlo.categories'),
+            'categories'     => Category::options(),
             'activeKategori' => request('kategori', 'all'),
             'unreadCount'    => $user ? Message::where('receiver_id', $user->id)->where('is_read', false)->count() : 0,
             // Menu utama per peran: penjual -> Toko Saya, admin -> Panel Admin, pembeli -> Tiket Saya
             'transaksiUrl'   => match ($user?->role) {
                 null      => route('login'),
                 'penjual' => route('dashboard'),
-                'admin'   => route('admin.sellers'),
+                'admin'   => route('admin.dashboard'),
                 default   => route('bookings.index'),
             },
         ]);

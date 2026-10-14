@@ -30,7 +30,14 @@ class Product extends Model
     {
         return [
             'shipping_options' => 'array',
+            'taken_down_at'    => 'datetime',
         ];
+    }
+
+    // Diturunkan admin karena melanggar: tidak tayang dan tidak bisa dibeli
+    public function isTakenDown(): bool
+    {
+        return $this->taken_down_at !== null;
     }
 
     // COD (ketemu langsung) hanya untuk penjual yang lapaknya di Batam
@@ -74,9 +81,10 @@ class Product extends Model
     // Status produk yang masih tayang di katalog dan dihitung ke kuota gratis
     public const ACTIVE_STATUSES = ['Available', 'Booked'];
 
+    // Produk yang diturunkan admin tidak dihitung aktif (tidak tayang, tidak memakai kuota)
     public function scopeActive(Builder $query): Builder
     {
-        return $query->whereIn('status', self::ACTIVE_STATUSES);
+        return $query->whereIn('status', self::ACTIVE_STATUSES)->whereNull('taken_down_at');
     }
 
     /**
@@ -91,7 +99,7 @@ class Product extends Model
         return $query->active()->where(function (Builder $q) use ($limit) {
             $q->whereHas('user', fn (Builder $u) => $u->where('subscription_expires_at', '>', now()))
                 ->orWhereRaw(
-                    '(select count(*) from products as earlier where earlier.user_id = products.user_id and earlier.status in (?, ?) and earlier.id < products.id) < ?',
+                    '(select count(*) from products as earlier where earlier.user_id = products.user_id and earlier.status in (?, ?) and earlier.taken_down_at is null and earlier.id < products.id) < ?',
                     [...self::ACTIVE_STATUSES, $limit]
                 );
         });

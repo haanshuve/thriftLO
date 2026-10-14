@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,11 @@ class OrderController extends Controller
     // Checkout lewat pengiriman: ongkir diambil dari data produk, bukan dari input pembeli
     public function store(Request $request, Product $product)
     {
+        // Admin hanya mengelola platform, tidak ikut berbelanja
+        if (Auth::user()->isAdmin()) {
+            return redirect()->route('product.show', $product)->with('error', User::ADMIN_CANNOT_BUY_MESSAGE);
+        }
+
         $request->validate([
             'shipping_option'  => 'required|integer|min:0',
             'shipping_address' => 'required|string|max:500',

@@ -59,7 +59,34 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'subscription_expires_at' => 'datetime',
+            'deactivated_at' => 'datetime',
         ];
+    }
+
+    public const ROLE_LABELS = [
+        'pembeli' => 'Pembeli',
+        'penjual' => 'Penjual',
+        'admin'   => 'Admin',
+    ];
+
+    public const ADMIN_CANNOT_BUY_MESSAGE = 'Akun admin tidak bisa membooking atau checkout barang. Gunakan akun pembeli untuk berbelanja.';
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function roleLabel(): string
+    {
+        return self::ROLE_LABELS[$this->role] ?? ucfirst((string) $this->role);
+    }
+
+    public const DEACTIVATED_MESSAGE = 'Akun kamu sedang dinonaktifkan oleh admin thriftLO. Hubungi admin bila menurutmu ini keliru.';
+
+    // Dinonaktifkan admin: tidak bisa masuk dan sesi yang masih berjalan diakhiri
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
     }
 
     public function products()

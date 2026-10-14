@@ -4,7 +4,7 @@
         $user = Auth::user();
         $isSeller = $user->role === 'penjual';
         $isVerified = $isSeller && $user->seller_status === 'verified';
-        $categories = config('thriftlo.categories');
+        $categories = \App\Models\Category::options();
         $myProducts = $myProducts ?? collect();
         $myBookings = $myBookings ?? collect();
 
@@ -296,7 +296,9 @@
                                  class="w-full h-full object-cover {{ $status === 'available' ? '' : 'opacity-60' }}"
                                  onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=500&q=80'">
                             <span class="absolute top-2 left-2 text-[11px] font-bold px-2 py-0.5 rounded-md shadow-sm {{ $statusClass }}">{{ $statusText }}</span>
-                            @if(in_array($item->id, $hiddenProductIds, true))
+                            @if($item->isTakenDown())
+                                <span class="absolute inset-x-0 bottom-0 bg-rose-700/90 text-white text-xs font-semibold text-center py-1.5">⛔ Diturunkan admin</span>
+                            @elseif(in_array($item->id, $hiddenProductIds, true))
                                 <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-xs font-semibold text-center py-1.5">🙈 Disembunyikan</span>
                             @endif
                             @if($item->mode_jual === 'borongan')
@@ -307,6 +309,9 @@
                             <h3 class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $item->title }}">{{ $item->title }}</h3>
                             <p class="mt-1 text-base font-bold text-emerald-700 tabular-nums">Rp{{ number_format($item->price, 0, ',', '.') }}</p>
                             <p class="mt-0.5 text-[11px] text-slate-500 truncate">{{ $categories[$item->kategori]['label'] ?? ($item->kategori ?: 'Tanpa kategori') }} · {{ $kondisi }}</p>
+                            @if($item->isTakenDown())
+                                <p class="mt-1 rounded-md bg-rose-50 border border-rose-200 px-2 py-1 text-[11px] text-rose-800">Alasan: {{ $item->takedown_reason }}</p>
+                            @endif
                             @if($item->hasVideoProof())
                                 <p class="mt-0.5 text-[11px] font-semibold text-sky-700">🎥 Ada Video Proof</p>
                             @elseif($item->video_proof)

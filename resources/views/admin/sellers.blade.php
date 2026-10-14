@@ -1,4 +1,4 @@
-<x-market-layout title="Panel Admin">
+<x-admin-layout title="Verifikasi Penjual">
 
     @php
         $tabs = [
@@ -13,16 +13,12 @@
         ];
     @endphp
 
-    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+    <div class="space-y-4">
 
         <div>
             <h1 class="text-lg sm:text-xl font-bold text-slate-900">Verifikasi penjual</h1>
             <p class="text-sm text-slate-500 mt-0.5">Cocokkan foto KTP dengan selfie sebelum menyetujui. Penjual baru bisa menayangkan barang setelah disetujui.</p>
         </div>
-
-        @if(session('success'))
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">✅ {{ session('success') }}</div>
-        @endif
 
         <!-- Pendapatan platform dari komisi Kirim (terpisah dari langganan dan COD) -->
         @isset($commission)
@@ -114,5 +110,5 @@
                 </div>
             @endforelse
         </div>
-    </main>
-</x-market-layout>
+    </div>
+</x-admin-layout>

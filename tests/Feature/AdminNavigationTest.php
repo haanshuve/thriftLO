@@ -17,7 +17,7 @@ class AdminNavigationTest extends TestCase
         $html = $this->actingAs($admin)->get('/')->assertOk()->getContent();
 
         $this->assertStringContainsString('Panel Admin', $html);
-        $this->assertStringContainsString('href="' . route('admin.sellers') . '"', $html);
+        $this->assertStringContainsString('href="' . route('admin.dashboard') . '"', $html);
         $this->assertMatchesRegularExpression('/aria-label="Navigasi bawah".*>\s*Admin\s*</s', $html);
         $this->assertStringNotContainsString('href="' . route('bookings.index') . '"', $html);
     }
@@ -27,14 +27,20 @@ class AdminNavigationTest extends TestCase
         foreach (['pembeli', 'penjual'] as $role) {
             $this->actingAs(User::factory()->create(['role' => $role]))->get('/')->assertOk()
                 ->assertDontSee('Panel Admin')
-                ->assertDontSee(route('admin.sellers'), false);
+                ->assertDontSee(route('admin.dashboard'), false);
         }
     }
 
-    public function test_admin_shortcut_url_redirects_to_seller_verification(): void
+    public function test_admin_url_opens_summary_in_admin_layout_without_marketplace_navbar(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin']))->get('/admin')
-            ->assertRedirect(route('admin.sellers'));
+        $this->actingAs(User::factory()->create(['role' => 'admin', 'name' => 'Admin Rina']))->get('/admin')->assertOk()
+            ->assertSee('Panel Admin')
+            ->assertSee('Navigasi admin', false)
+            ->assertSee('Admin Rina')
+            ->assertSee('Lihat toko')
+            ->assertSee('href="' . route('home') . '"', false)
+            ->assertDontSee('Navigasi bawah', false)
+            ->assertDontSee('Cari jaket, sepatu, kamera...');
     }
 
     public function test_admin_shortcut_url_is_still_protected(): void

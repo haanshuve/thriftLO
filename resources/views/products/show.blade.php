@@ -6,7 +6,10 @@
             ? ($product->image_url ?? $product->image_path)
             : asset('storage/' . ($product->image_url ?? $product->image_path));
         $status = strtolower($product->status);
-        $isAvailable = $status === 'available';
+        $isTakenDown = $product->isTakenDown();
+        $isAvailable = $status === 'available' && !$isTakenDown;
+        // Admin hanya mengelola platform: tombol booking & checkout disembunyikan
+        $isAdminViewer = (bool) auth()->user()?->isAdmin();
         $canCod = $product->supportsCod();
         $shippingOptions = $product->shippingOptions();
         $price = (int) $product->price;
@@ -25,6 +28,13 @@
             <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">⚠️ {{ session('error') }}</div>
         @endif
 
+        @if($isTakenDown)
+            <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
+                <p class="font-semibold">⛔ Barang ini diturunkan admin dan tidak tampil di katalog.</p>
+                <p class="mt-0.5">Alasan: {{ $product->takedown_reason }}</p>
+            </div>
+        @endif
+
         <div class="grid md:grid-cols-2 gap-5 md:gap-8 items-start">
             <!-- Foto -->
             <div class="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
@@ -32,7 +42,7 @@
                      onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80'">
                 @unless($isAvailable)
                     <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-sm font-semibold text-center py-2">
-                        {{ $status === 'booked' ? 'Sedang dalam transaksi' : 'Sudah terjual' }}
+                        {{ $isTakenDown ? 'Diturunkan admin' : ($status === 'booked' ? 'Sedang dalam transaksi' : 'Sudah terjual') }}
                     </span>
                 @endunless
             </div>
@@ -71,9 +81,14 @@
                         <span>Ini barang kamu.</span>
                         <a href="{{ route('product.edit', $product->id) }}" class="h-9 px-4 inline-flex items-center rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Edit barang</a>
                     </div>
+                @elseif($isAdminViewer)
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 flex items-center justify-between gap-3">
+                        <span>Kamu masuk sebagai admin, jadi tidak bisa booking atau checkout.</span>
+                        <a href="{{ route('admin.products', ['q' => $product->title]) }}" class="shrink-0 h-9 px-4 inline-flex items-center rounded-lg bg-slate-900 hover:bg-slate-700 text-white font-semibold">Kelola di panel</a>
+                    </div>
                 @elseif(!$isAvailable)
                     <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
-                        {{ $status === 'booked' ? 'Barang ini sedang dalam transaksi dengan pembeli lain.' : 'Barang ini sudah terjual.' }}
+                        {{ $isTakenDown ? 'Barang ini tidak bisa dibeli.' : ($status === 'booked' ? 'Barang ini sedang dalam transaksi dengan pembeli lain.' : 'Barang ini sudah terjual.') }}
                         <a href="{{ route('home') }}" class="font-semibold text-emerald-700 hover:underline">Cari barang lain</a>
                     </div>
                 @else
@@ -246,7 +261,7 @@
         </div>
     </main>
 
-    @if($canCod && $isAvailable && !$isOwner)
+    @if($canCod && $isAvailable && !$isOwner && !$isAdminViewer)
         <x-booking-modal />
     @endif
 </x-market-layout>

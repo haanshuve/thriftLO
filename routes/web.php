@@ -8,6 +8,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Admin;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\SubscriptionController;
@@ -68,14 +69,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
 });
 
-// Panel Admin Verifikasi Penjual
-Route::middleware(['auth', 'admin'])->group(function () {
-    Route::get('/admin', fn () => redirect()->route('admin.sellers'))->name('admin.index');
-    Route::get('/admin/sellers', [AdminController::class, 'index'])->name('admin.sellers');
-    Route::get('/admin/seller/{id}/ktp', [AdminController::class, 'showKtp'])->name('admin.sellerKtp');
-    Route::get('/admin/seller/{id}/selfie', [AdminController::class, 'showSelfie'])->name('admin.sellerSelfie');
-    Route::post('/admin/seller/{id}/verify', [AdminController::class, 'verifySeller'])->name('admin.verifySeller');
-    Route::post('/admin/seller/{id}/reject', [AdminController::class, 'rejectSeller'])->name('admin.rejectSeller');
+// Panel Admin (layout terpisah dari marketplace). Semua rute di sini khusus role admin.
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
+
+    // Verifikasi penjual (KYC)
+    Route::get('/sellers', [AdminController::class, 'index'])->name('sellers');
+    Route::get('/seller/{id}/ktp', [AdminController::class, 'showKtp'])->name('sellerKtp');
+    Route::get('/seller/{id}/selfie', [AdminController::class, 'showSelfie'])->name('sellerSelfie');
+    Route::post('/seller/{id}/verify', [AdminController::class, 'verifySeller'])->name('verifySeller');
+    Route::post('/seller/{id}/reject', [AdminController::class, 'rejectSeller'])->name('rejectSeller');
+
+    Route::get('/transaksi', [Admin\TransactionController::class, 'index'])->name('transactions');
+
+    Route::get('/pengguna', [Admin\UserController::class, 'index'])->name('users');
+    Route::patch('/pengguna/{user}/nonaktifkan', [Admin\UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::patch('/pengguna/{user}/aktifkan', [Admin\UserController::class, 'activate'])->name('users.activate');
+
+    Route::get('/produk', [Admin\ProductController::class, 'index'])->name('products');
+    Route::patch('/produk/{product}/turunkan', [Admin\ProductController::class, 'takeDown'])->name('products.takeDown');
+    Route::patch('/produk/{product}/tayangkan', [Admin\ProductController::class, 'restore'])->name('products.restore');
+
+    Route::get('/kategori', [Admin\CategoryController::class, 'index'])->name('categories');
+    Route::post('/kategori', [Admin\CategoryController::class, 'store'])->name('categories.store');
+    Route::put('/kategori/{category}', [Admin\CategoryController::class, 'update'])->name('categories.update');
+    Route::delete('/kategori/{category}', [Admin\CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    Route::get('/laporan', [Admin\ReportController::class, 'index'])->name('reports');
 });
 
 // Rute Autentikasi Bawaan Laravel Breeze

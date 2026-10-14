@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\Booking;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -41,7 +43,7 @@ class ProductController extends Controller
         $totalBookings = Booking::count();
         $wastePreventedKg = ($totalItems * 0.5) + ($totalBookings * 1.2);
 
-        $categories = config('thriftlo.categories');
+        $categories = Category::options();
 
         return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories'));
     }
@@ -84,12 +86,14 @@ class ProductController extends Controller
         // Produk yang disembunyikan karena kuota penjual habis hanya bisa dilihat pemiliknya
         $isHidden = in_array($product->status, Product::ACTIVE_STATUSES, true)
             && !Product::visibleInCatalog()->whereKey($product->id)->exists();
-        abort_if($isHidden && !$isOwner, 404);
+        // Produk yang diturunkan admin juga hanya bisa dilihat pemiliknya (dan admin)
+        $canSeeHidden = $isOwner || Auth::user()?->role === 'admin';
+        abort_if(($isHidden || $product->isTakenDown()) && !$canSeeHidden, 404);
 
         return view('products.show', [
             'product'    => $product,
             'isOwner'    => $isOwner,
-            'categories' => config('thriftlo.categories'),
+            'categories' => Category::options(),
         ]);
     }
 
@@ -148,7 +152,7 @@ class ProductController extends Controller
         $request->validateWithBag('product', [
             'nama_barang'     => 'required|string|max:255',
             'mode_jual'       => ['required', Rule::in(['ecer', 'borongan'])],
-            'kategori'        => ['required', Rule::in(array_keys(config('thriftlo.categories')))],
+            'kategori'        => ['required', Rule::in(Category::slugs())],
             'harga'           => 'required|numeric|min:0',
             'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
             // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
@@ -211,6 +215,11 @@ class ProductController extends Controller
             return redirect()->route('login')->with('error', 'Silakan login terlebih dahulu!');
         }
 
+        // Admin hanya mengelola platform, tidak ikut berbelanja
+        if (Auth::user()->isAdmin()) {
+            return redirect()->route('product.show', $id)->with('error', User::ADMIN_CANNOT_BUY_MESSAGE);
+        }
+
         $request->validate([
             'lokasi_cod' => 'required|string|max:255',
             'waktu_cod'  => 'required',
@@ -270,7 +279,7 @@ class ProductController extends Controller
         // Produk aktif di atas kuota gratis yang sedang disembunyikan dari katalog
         $hiddenProductIds = $user->hasActiveSubscription()
             ? []
-            : $myProducts->whereIn('status', Product::ACTIVE_STATUSES)->sortBy('id')
+            : $myProducts->whereIn('status', Product::ACTIVE_STATUSES)->whereNull('taken_down_at')->sortBy('id')
                 ->slice((int) config('thriftlo.subscription.free_product_limit'))->pluck('id')->all();
 
         // Pesanan lewat pengiriman untuk barang milik penjual

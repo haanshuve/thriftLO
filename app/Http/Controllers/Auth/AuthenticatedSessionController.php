@@ -33,6 +33,11 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
 
         // 3. Pengarahan halaman (Redirect) berdasarkan Role User
+        if ($user->isAdmin()) {
+            return redirect()->intended(route('admin.dashboard', absolute: false))
+                ->with('success', 'Selamat datang di Panel Admin.');
+        }
+
         if ($user->role === 'penjual') {
             // Jika akun ber-role Penjual -> Diarahkan ke Dashboard Penjual
             return redirect()->intended(route('dashboard', absolute: false))

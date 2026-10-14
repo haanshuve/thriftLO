@@ -16,7 +16,7 @@
     <div>
         <label for="kategori" class="block text-sm font-semibold text-slate-700 mb-1">Kategori</label>
         <select id="kategori" name="kategori" required class="{{ $input }}">
-            @foreach(config('thriftlo.categories') as $value => $cat)
+            @foreach(\App\Models\Category::options() as $value => $cat)
                 <option value="{{ $value }}" @selected(old('kategori', $product?->kategori) === $value)>{{ $cat['icon'] }} {{ $cat['label'] }}</option>
             @endforeach
         </select>

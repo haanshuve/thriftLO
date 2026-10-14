@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\ProductRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +23,7 @@ class RequestController extends Controller
             ->latest()
             ->get();
 
-        $categories = config('thriftlo.categories');
+        $categories = Category::options();
 
         return view('requests.index', compact('requests', 'tab', 'categories'));
     }
@@ -32,7 +33,7 @@ class RequestController extends Controller
     {
         $request->validateWithBag('request', [
             'nama_barang'     => 'required|string|max:255',
-            'kategori'        => ['required', Rule::in(array_keys(config('thriftlo.categories')))],
+            'kategori'        => ['required', Rule::in(Category::slugs())],
             'budget_maksimal' => 'required|numeric|min:0|max:1000000000',
             'lokasi_cod'      => 'required|string|max:255',
             'deskripsi'       => 'required|string|max:2000',

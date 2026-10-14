@@ -5,6 +5,8 @@
         $search = trim((string) request('search'));
         $isFiltered = $search !== '' || $activeKategori !== 'all';
         $viewer = auth()->user();
+        // Admin hanya mengelola platform: tombol booking & pengiriman diganti "Lihat detail"
+        $isAdminViewer = (bool) $viewer?->isAdmin();
         $categoryLabel = $categories[$activeKategori]['label'] ?? $activeKategori;
     @endphp
 
@@ -163,7 +165,12 @@
                                            aria-label="Tanya penjual soal {{ $name }}" title="Tanya penjual">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
                                         </a>
-                                        @if($isAvailable && $canCod)
+                                        @if($isAvailable && $isAdminViewer)
+                                            <a href="{{ $detailUrl }}"
+                                               class="flex-1 h-9 inline-flex items-center justify-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-semibold">
+                                                Lihat detail
+                                            </a>
+                                        @elseif($isAvailable && $canCod)
                                             <button type="button" data-url="{{ route('product.book', $p->id) }}" data-name="{{ $name }}" data-price="{{ (int) $p->price }}" onclick="openBookingModal(this)"
                                                     class="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 text-white text-xs sm:text-sm font-semibold transition active:scale-95 motion-reduce:transform-none">
                                                 Booking COD
@@ -211,5 +218,7 @@
         </footer>
     </main>
 
-    <x-booking-modal />
+    @unless($isAdminViewer)
+        <x-booking-modal />
+    @endunless
 </x-market-layout>

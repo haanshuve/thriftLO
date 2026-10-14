@@ -96,7 +96,7 @@ class ProfilePageTest extends TestCase
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']))->get('/profile')->assertOk()
             ->assertSee('Panel Admin')
-            ->assertSee(route('admin.sellers'), false);
+            ->assertSee(route('admin.dashboard'), false);
     }
 
     public function test_wrong_password_keeps_delete_section_open_with_error(): void

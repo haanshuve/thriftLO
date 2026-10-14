@@ -70,6 +70,10 @@ class GoogleController extends Controller
             }
         }
 
+        if ($user->isDeactivated()) {
+            return redirect()->route('login')->with('error', User::DEACTIVATED_MESSAGE);
+        }
+
         // Foto Google disimpan sebagai cadangan; foto unggahan sendiri tetap diutamakan (User::avatarUrl)
         if ($googleUser->getAvatar() && $user->google_avatar_url !== $googleUser->getAvatar()) {
             $user->forceFill(['google_avatar_url' => $googleUser->getAvatar()])->save();
@@ -77,6 +81,11 @@ class GoogleController extends Controller
 
         Auth::login($user, remember: true);
         request()->session()->regenerate();
+
+        if ($user->isAdmin()) {
+            return redirect()->intended(route('admin.dashboard', absolute: false))
+                ->with('success', 'Selamat datang di Panel Admin.');
+        }
 
         return redirect()->intended(route('home', absolute: false))
             ->with('success', 'Berhasil masuk dengan Google. Selamat datang, ' . $user->name . '!');
