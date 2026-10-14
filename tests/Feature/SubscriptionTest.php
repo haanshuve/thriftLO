@@ -41,7 +41,7 @@ class SubscriptionTest extends TestCase
     {
         Storage::fake('public');
 
-        return $this->actingAs($this->seller)->post(route('product.store'), [
+        return $this->actingAs($this->seller)->post(route('product.store'), ['idempotency_key' => $this->formKey(), 
             'nama_barang' => $title,
             'mode_jual' => 'ecer',
             'kategori' => 'Fashion',
@@ -92,7 +92,7 @@ class SubscriptionTest extends TestCase
     {
         $this->travelTo(now()->startOfMinute());
 
-        $this->actingAs($this->seller)->post(route('subscription.pay'))
+        $this->actingAs($this->seller)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()])
             ->assertRedirect(route('subscription.show'))
             ->assertSessionHas('success');
 
@@ -107,7 +107,7 @@ class SubscriptionTest extends TestCase
         $this->travelTo(now()->startOfMinute());
         $this->seller->forceFill(['subscription_expires_at' => now()->addDays(10)])->save();
 
-        $this->actingAs($this->seller)->post(route('subscription.pay'));
+        $this->actingAs($this->seller)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()]);
 
         $this->assertTrue($this->seller->fresh()->subscription_expires_at->equalTo(now()->addDays(40)));
     }
@@ -115,7 +115,7 @@ class SubscriptionTest extends TestCase
     public function test_subscribed_seller_can_list_beyond_free_quota(): void
     {
         $this->products(5);
-        $this->actingAs($this->seller)->post(route('subscription.pay'));
+        $this->actingAs($this->seller)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()]);
 
         $this->upload('Barang Keenam')->assertSessionHasNoErrors();
         $this->assertDatabaseHas('products', ['title' => 'Barang Keenam']);
@@ -125,7 +125,7 @@ class SubscriptionTest extends TestCase
     {
         config(['thriftlo.subscription.simulate_payment' => false]);
 
-        $this->actingAs($this->seller)->post(route('subscription.pay'))
+        $this->actingAs($this->seller)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()])
             ->assertSessionHas('error');
 
         $this->assertNull($this->seller->fresh()->subscription_expires_at);
@@ -136,10 +136,10 @@ class SubscriptionTest extends TestCase
         $pending = User::factory()->create(['role' => 'penjual', 'seller_status' => 'pending']);
         $buyer = User::factory()->create(['role' => 'pembeli']);
 
-        $this->actingAs($pending)->post(route('subscription.pay'))->assertSessionHas('error');
+        $this->actingAs($pending)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()])->assertSessionHas('error');
         $this->assertNull($pending->fresh()->subscription_expires_at);
 
-        $this->actingAs($buyer)->post(route('subscription.pay'))->assertForbidden();
+        $this->actingAs($buyer)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()])->assertForbidden();
         $this->actingAs($buyer)->get(route('subscription.show'))->assertRedirect(route('dashboard'));
     }
 
@@ -159,7 +159,7 @@ class SubscriptionTest extends TestCase
             ->assertSee('Disembunyikan');
 
         // Berlangganan lagi: semua produk tampil kembali
-        $this->actingAs($this->seller)->post(route('subscription.pay'));
+        $this->actingAs($this->seller)->post(route('subscription.pay'), ['idempotency_key' => $this->formKey()]);
         $this->get('/')->assertSee('Barang Available 6')->assertSee('Barang Available 7');
     }
 
@@ -179,7 +179,7 @@ class SubscriptionTest extends TestCase
         $hidden = Product::where('title', 'Barang Available 6')->first();
         $buyer = User::factory()->create(['role' => 'pembeli']);
 
-        $this->actingAs($buyer)->from('/')->post(route('product.book', $hidden->id), [
+        $this->actingAs($buyer)->from('/')->post(route('product.book', $hidden->id), ['idempotency_key' => $this->formKey(), 
             'lokasi_cod' => 'Mega Mall', 'waktu_cod' => now()->addDay()->format('Y-m-d\TH:i'),
         ])->assertSessionHas('error');
 

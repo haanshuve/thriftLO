@@ -136,7 +136,7 @@
                         @php $bySeller = $b->cancelled_by === \App\Models\Booking::CANCELLED_BY_SELLER; @endphp
                         <div class="mx-4 mb-4 rounded-lg border px-3 py-2.5 text-xs space-y-0.5 {{ $bySeller ? 'border-sky-200 bg-sky-50 text-sky-900' : 'border-slate-200 bg-slate-50 text-slate-700' }}">
                             <p class="font-semibold">
-                                {{ $bySeller ? 'Penjual membatalkan booking ini' : ($b->cancelled_by ? 'Kamu membatalkan booking ini' : 'Booking ini dibatalkan') }}{{ $b->cancelled_at ? ' pada ' . $b->cancelled_at->format('d M Y, H:i') : '' }}.
+                                {{ $bySeller ? 'Penjual membatalkan booking ini' : ($b->cancelled_by === \App\Models\Booking::CANCELLED_BY_SYSTEM ? 'Booking ini dibatalkan otomatis oleh sistem (biaya booking dikembalikan)' : ($b->cancelled_by ? 'Kamu membatalkan booking ini' : 'Booking ini dibatalkan')) }}{{ $b->cancelled_at ? ' pada ' . $b->cancelled_at->format('d M Y, H:i') : '' }}.
                             </p>
                             @if($b->cancelReasonLabel())
                                 <p>Alasan: {{ $b->cancelReasonLabel() }}</p>

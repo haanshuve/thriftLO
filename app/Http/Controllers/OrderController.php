@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\FormToken;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,13 +30,49 @@ class OrderController extends Controller
             'shipping_address.required' => 'Alamat pengiriman wajib diisi.',
             'shipping_address.max'      => 'Alamat pengiriman maksimal 500 karakter.',
         ]);
+        $formKey = FormToken::validate($request);
+
+        // Kiriman ulang formulir yang sama: jangan buat pesanan kedua, tunjukkan pesanan yang sudah ada
+        if ($existing = Order::where('idempotency_key', $formKey)->first()) {
+            return $this->orderAlreadyCreated($existing, $product);
+        }
 
         if ((int) $product->user_id === (int) Auth::id()) {
             return back()->with('error', 'Kamu tidak bisa membeli barangmu sendiri.');
         }
 
-        // Kunci baris produk supaya dua pembeli tidak bisa checkout barang yang sama bersamaan
-        $order = DB::transaction(function () use ($request, $product) {
+        try {
+            $order = $this->createOrder($request, $product, $formKey);
+        } catch (UniqueConstraintViolationException) {
+            // Formulir yang sama selesai lebih dulu di request lain yang datang bersamaan
+            $existing = Order::where('idempotency_key', $formKey)->first();
+
+            return $existing
+                ? $this->orderAlreadyCreated($existing, $product)
+                : back()->with('error', 'Barang sudah tidak tersedia. Cek barang lain yang mirip, yuk!');
+        }
+
+        if (!$order) {
+            return back()->with('error', 'Yah, barang ini sudah tidak tersedia. Cek barang lain yang mirip, yuk!');
+        }
+
+        return redirect()->route('bookings.index')->with('success',
+            'Pesanan dibuat! Total Rp' . number_format($order->total_price, 0, ',', '.') . ' via ' . $order->courier . '. Penjual akan segera mengirim barangnya.');
+    }
+
+    private function orderAlreadyCreated(Order $existing, Product $product)
+    {
+        if ((int) $existing->user_id !== (int) Auth::id() || (int) $existing->product_id !== (int) $product->id) {
+            return redirect()->route('product.show', $product)->with('error', FormToken::REUSED_MESSAGE);
+        }
+
+        return redirect()->route('bookings.index')->with('success', 'Pesanan ini sudah dibuat, jadi tidak dibuat dua kali. Total Rp' . number_format($existing->total_price, 0, ',', '.') . ' via ' . $existing->courier . '.');
+    }
+
+    private function createOrder(Request $request, Product $product, string $formKey): ?Order
+    {
+        // Kunci baris produk supaya dua pembeli (atau booking COD) tidak bisa mengambil barang yang sama bersamaan
+        return DB::transaction(function () use ($request, $product, $formKey) {
             $locked = Product::visibleInCatalog()->whereKey($product->id)->lockForUpdate()->first();
 
             if (!$locked || $locked->status !== 'Available') {
@@ -57,15 +95,9 @@ class OrderController extends Controller
                 'total_price'      => $locked->price + $option['cost'],
                 'shipping_address' => $request->shipping_address,
                 'status'           => Order::AWAITING_SHIPMENT,
+                'idempotency_key'  => $formKey,
             ]);
         });
-
-        if (!$order) {
-            return back()->with('error', 'Yah, barang ini sudah tidak tersedia. Cek barang lain yang mirip, yuk!');
-        }
-
-        return redirect()->route('bookings.index')->with('success',
-            'Pesanan dibuat! Total Rp' . number_format($order->total_price, 0, ',', '.') . ' via ' . $order->courier . '. Penjual akan segera mengirim barangnya.');
     }
 
     // Penjual menandai pesanan sudah dikirim (belum pakai nomor resi)

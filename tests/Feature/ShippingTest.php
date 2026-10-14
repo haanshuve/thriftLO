@@ -53,7 +53,7 @@ class ShippingTest extends TestCase
     {
         Storage::fake('public');
 
-        return $this->actingAs($seller)->post(route('product.store'), [
+        return $this->actingAs($seller)->post(route('product.store'), ['idempotency_key' => $this->formKey(), 
             'nama_barang' => 'Kemeja Flanel',
             'mode_jual' => 'ecer',
             'kategori' => 'Fashion',
@@ -138,7 +138,7 @@ class ShippingTest extends TestCase
         $product = $this->product($this->batamSeller, 'Jaket Batam', $this->jneAndJnt());
 
         $this->actingAs($this->buyer)->from(route('product.show', $product))->followingRedirects()
-            ->post(route('order.store', $product), ['shipping_option' => 1])
+            ->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 1])
             ->assertSee('Alamat pengiriman wajib diisi.')
             ->assertSee('name="buy_method" value="ship" class="sr-only" checked', false);
     }
@@ -164,7 +164,7 @@ class ShippingTest extends TestCase
     {
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
 
-        $this->actingAs($this->buyer)->post(route('product.book', $product->id), [
+        $this->actingAs($this->buyer)->post(route('product.book', $product->id), ['idempotency_key' => $this->formKey(), 
             'lokasi_cod' => 'Mega Mall', 'waktu_cod' => now()->addDay()->format('Y-m-d\TH:i'),
         ])->assertRedirect(route('product.show', $product))->assertSessionHas('error');
 
@@ -237,7 +237,7 @@ class ShippingTest extends TestCase
     {
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
 
-        $this->actingAs($this->buyer)->post(route('order.store', $product), [
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 
             'shipping_option' => 1,
             'shipping_address' => 'Jl. Sudirman No. 1, Pekanbaru 28111',
         ])->assertRedirect(route('bookings.index'))->assertSessionHas('success');
@@ -255,7 +255,7 @@ class ShippingTest extends TestCase
     {
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
 
-        $this->actingAs($this->buyer)->post(route('order.store', $product), [
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 
             'shipping_option' => 0, 'shipping_address' => 'Pekanbaru', 'shipping_cost' => 1, 'total_price' => 1,
         ]);
 
@@ -267,10 +267,10 @@ class ShippingTest extends TestCase
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
 
         $this->actingAs($this->buyer)->from(route('product.show', $product))
-            ->post(route('order.store', $product), ['shipping_option' => 5, 'shipping_address' => 'Pekanbaru'])
+            ->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 5, 'shipping_address' => 'Pekanbaru'])
             ->assertSessionHasErrors('shipping_option');
 
-        $this->actingAs($this->buyer)->post(route('order.store', $product), ['shipping_option' => 0])
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0])
             ->assertSessionHasErrors('shipping_address');
 
         $this->assertSame(0, Order::count());
@@ -282,9 +282,9 @@ class ShippingTest extends TestCase
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
         $booked = $this->product($this->jakartaSeller, 'Tas Jakarta', $this->jneAndJnt(), 'Booked');
 
-        $this->actingAs($this->jakartaSeller)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Jakarta'])
+        $this->actingAs($this->jakartaSeller)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Jakarta'])
             ->assertSessionHas('error');
-        $this->actingAs($this->buyer)->post(route('order.store', $booked), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
+        $this->actingAs($this->buyer)->post(route('order.store', $booked), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
             ->assertSessionHas('error');
 
         $this->assertSame(0, Order::count());
@@ -295,7 +295,7 @@ class ShippingTest extends TestCase
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
 
         $this->get(route('product.show', $product))->assertOk()->assertSee('Masuk untuk checkout');
-        $this->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
+        $this->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
             ->assertRedirect(route('login'));
     }
 
@@ -304,7 +304,7 @@ class ShippingTest extends TestCase
     public function test_seller_sees_order_and_marks_it_shipped(): void
     {
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
-        $this->actingAs($this->buyer)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Jl. Sudirman No. 1, Pekanbaru']);
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Jl. Sudirman No. 1, Pekanbaru']);
         $order = Order::sole();
 
         $this->actingAs($this->jakartaSeller)->get('/dashboard')->assertOk()
@@ -324,7 +324,7 @@ class ShippingTest extends TestCase
     public function test_only_product_owner_can_mark_order_shipped(): void
     {
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
-        $this->actingAs($this->buyer)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru']);
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru']);
         $order = Order::sole();
 
         $this->actingAs($this->batamSeller)->patch(route('order.ship', $order))->assertForbidden();
@@ -336,7 +336,7 @@ class ShippingTest extends TestCase
     public function test_buyer_sees_order_status_in_tiket_saya(): void
     {
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
-        $this->actingAs($this->buyer)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru']);
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru']);
 
         $this->actingAs($this->buyer)->get(route('bookings.index'))->assertOk()
             ->assertSee('Pesanan pengiriman')
@@ -360,7 +360,7 @@ class ShippingTest extends TestCase
 
         $this->actingAs($this->buyer)->get(route('product.show', $hidden))->assertNotFound();
         $this->actingAs($this->jakartaSeller)->get(route('product.show', $hidden))->assertOk();
-        $this->actingAs($this->buyer)->post(route('order.store', $hidden), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
+        $this->actingAs($this->buyer)->post(route('order.store', $hidden), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
             ->assertSessionHas('error');
     }
 

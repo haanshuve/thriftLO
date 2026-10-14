@@ -176,7 +176,7 @@
                                 </p>
                                 @if($booking->status_cod === 'Cancelled')
                                     <p class="mt-1.5 rounded-md bg-slate-50 border border-slate-200 px-2 py-1.5 text-xs text-slate-600">
-                                        {{ $booking->cancelled_by === \App\Models\Booking::CANCELLED_BY_SELLER ? 'Kamu membatalkan' : 'Pembeli membatalkan' }} booking ini{{ $booking->cancelled_at ? ' pada ' . $booking->cancelled_at->format('d M Y, H:i') : '' }}{{ $booking->cancelReasonLabel() ? ' · Alasan: ' . $booking->cancelReasonLabel() : '' }}.
+                                        {{ match ($booking->cancelled_by) { \App\Models\Booking::CANCELLED_BY_SELLER => 'Kamu membatalkan', \App\Models\Booking::CANCELLED_BY_SYSTEM => 'Sistem membatalkan otomatis', default => 'Pembeli membatalkan' } }} booking ini{{ $booking->cancelled_at ? ' pada ' . $booking->cancelled_at->format('d M Y, H:i') : '' }}{{ $booking->cancelReasonLabel() ? ' · Alasan: ' . $booking->cancelReasonLabel() : '' }}.
                                         @if($booking->feeStatusLabel())
                                             Biaya booking: {{ strtolower($booking->feeStatusLabel()) }}.
                                         @endif
@@ -363,8 +363,10 @@
                     <button type="button" onclick="closeUploadModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl" aria-label="Tutup">&times;</button>
                 </div>
 
-                <form action="{{ route('product.store') }}" method="POST" enctype="multipart/form-data" class="px-5 sm:px-6 py-4 space-y-3.5">
+                <form action="{{ route('product.store') }}" method="POST" enctype="multipart/form-data" class="px-5 sm:px-6 py-4 space-y-3.5"
+                          onsubmit="this.querySelector('[type=submit]').disabled = true">
                     @csrf
+                    <x-form-token />
 
                     @if($errors->product->any())
                         <div class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700" role="alert">

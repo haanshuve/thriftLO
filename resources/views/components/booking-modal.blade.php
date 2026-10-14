@@ -31,6 +31,7 @@
         <form id="bookingForm" method="POST" action="">
             @csrf
             <input type="hidden" name="qris_paid" value="1">
+            <x-form-token />
 
             <!-- Tahap 1: jadwal -->
             <div data-step="1" class="space-y-3">

@@ -34,7 +34,7 @@ class EscrowTest extends TestCase
             'shipping_options' => [['courier' => 'JNE Reguler', 'cost' => 15000]],
         ]);
 
-        $this->actingAs($this->buyer)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru']);
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru']);
         $order = Order::sole();
         $this->actingAs($this->seller)->patch(route('order.ship', $order));
         $order->forceFill(['shipped_at' => now()->sub($shippedAgo)])->save();

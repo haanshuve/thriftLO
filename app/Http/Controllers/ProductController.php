@@ -8,8 +8,11 @@ use App\Models\Product;
 use App\Models\Booking;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\FormToken;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -72,25 +75,65 @@ class ProductController extends Controller
             return redirect()->route('dashboard')->with('error', 'Hanya penjual terverifikasi yang bisa menayangkan barang.');
         }
 
+        $formKey = FormToken::validate($request, 'product');
+
+        // Klik ganda saat upload video yang lama: formulir yang sama tidak membuat produk kedua
+        if ($this->productAlreadyCreated($formKey)) {
+            return redirect()->route('dashboard')->with('success', 'Barang ini sudah ditayangkan.');
+        }
+
         if (!$user->canListMoreProducts()) {
             return redirect()->route('subscription.show')->with('limit_reached', true);
         }
 
         $this->validateProduct($request, isNew: true);
 
-        $imagePath = $request->file('image')->store('products', 'public');
-        $videoPath = $request->file('video_proof')->store('product-videos', 'public');
+        $paths = [];
+        try {
+            // Kunci baris penjual: dua upload bersamaan tidak bisa sama-sama lolos cek kuota gratis
+            $created = DB::transaction(function () use ($request, $user, $formKey, &$paths) {
+                $seller = User::whereKey($user->id)->lockForUpdate()->first();
 
-        Product::create([
-            'user_id'          => auth()->id(),
-            'image_url'        => $imagePath,
-            'image_path'       => $imagePath,
-            'video_proof_path' => $videoPath,
-            'status'           => 'Available',
-            ...$this->productAttributes($request),
-        ]);
+                if (!$seller->canListMoreProducts()) {
+                    return false;
+                }
+
+                $paths = [
+                    $request->file('image')->store('products', 'public'),
+                    $request->file('video_proof')->store('product-videos', 'public'),
+                ];
+
+                Product::create([
+                    'user_id'          => $seller->id,
+                    'image_url'        => $paths[0],
+                    'image_path'       => $paths[0],
+                    'video_proof_path' => $paths[1],
+                    'status'           => 'Available',
+                    'idempotency_key'  => $formKey,
+                    ...$this->productAttributes($request),
+                ]);
+
+                return true;
+            });
+        } catch (UniqueConstraintViolationException) {
+            // Formulir yang sama selesai lebih dulu di request lain
+            Storage::disk('public')->delete($paths);
+
+            return redirect()->route('dashboard')->with('success', 'Barang ini sudah ditayangkan.');
+        }
+
+        if (!$created) {
+            Storage::disk('public')->delete($paths);
+
+            return redirect()->route('subscription.show')->with('limit_reached', true);
+        }
 
         return redirect()->back()->with('success', 'Barang preloved berhasil ditayangkan!');
+    }
+
+    private function productAlreadyCreated(string $formKey): bool
+    {
+        return Product::where('idempotency_key', $formKey)->where('user_id', Auth::id())->exists();
     }
 
     // Halaman detail produk: COD untuk penjual Batam, pilih pengiriman untuk penjual luar Batam
@@ -271,8 +314,14 @@ class ProductController extends Controller
             'lokasi_cod' => 'required|string|max:255',
             'waktu_cod'  => 'required',
         ]);
+        $formKey = FormToken::validate($request);
 
         $product = Product::findOrFail($id);
+
+        // Kiriman ulang formulir yang sama (klik ganda, refresh, retry): tampilkan booking yang sudah ada
+        if ($existing = Booking::where('idempotency_key', $formKey)->first()) {
+            return $this->bookingAlreadyCreated($existing, $product);
+        }
 
         if (strtolower($product->status) !== 'available') {
             return redirect()->back()->with('error', 'Yah, barang ini keburu di-booking orang lain. Cek barang lain yang mirip, yuk!');
@@ -294,24 +343,58 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Selesaikan pembayaran biaya booking lewat QRIS dulu untuk mengunci barangnya.');
         }
 
-        $qrToken = 'TL-' . strtoupper(Str::random(8));
         $fee = (int) config('thriftlo.booking.fee');
 
-        Booking::create([
-            'product_id'   => $product->id,
-            'user_id'      => Auth::id(),
-            'qr_token'     => $qrToken,
-            'cod_location' => $request->lokasi_cod,
-            'cod_schedule' => $request->waktu_cod,
-            'status_cod'   => 'Pending',
-            'booking_fee'  => $fee,
-            'fee_status'   => Booking::FEE_PAID,
-            'paid_at'      => now(),
-        ]);
+        try {
+            // Kunci baris produk: booking dan checkout Kirim untuk barang yang sama saling menunggu,
+            // lalu status dicek ulang di dalam kunci supaya barang tidak terjual dua kali.
+            $booking = DB::transaction(function () use ($request, $product, $fee, $formKey) {
+                $locked = Product::visibleInCatalog()->whereKey($product->id)->lockForUpdate()->first();
 
-        $product->update(['status' => 'Booked']);
+                if (!$locked || $locked->status !== 'Available') {
+                    return null;
+                }
 
-        return redirect()->route('bookings.index')->with('success', 'Pembayaran biaya booking Rp' . number_format($fee, 0, ',', '.') . ' berhasil. Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $qrToken . ' di bawah ini.');
+                $booking = Booking::create([
+                    'product_id'      => $locked->id,
+                    'user_id'         => Auth::id(),
+                    'qr_token'        => 'TL-' . strtoupper(Str::random(8)),
+                    'idempotency_key' => $formKey,
+                    'cod_location'    => $request->lokasi_cod,
+                    'cod_schedule'    => $request->waktu_cod,
+                    'status_cod'      => 'Pending',
+                    'booking_fee'     => $fee,
+                    'fee_status'      => Booking::FEE_PAID,
+                    'paid_at'         => now(),
+                ]);
+
+                $locked->update(['status' => 'Booked']);
+
+                return $booking;
+            });
+        } catch (UniqueConstraintViolationException) {
+            // Pengaman terakhir di database: token formulir sudah dipakai, atau barang sudah punya booking aktif
+            if ($existing = Booking::where('idempotency_key', $formKey)->first()) {
+                return $this->bookingAlreadyCreated($existing, $product);
+            }
+            $booking = null;
+        }
+
+        if (!$booking) {
+            return redirect()->back()->with('error', 'Barang sudah tidak tersedia. Barusan ada yang lebih dulu mem-booking atau membelinya. Cek barang lain yang mirip, yuk!');
+        }
+
+        return redirect()->route('bookings.index')->with('success', 'Pembayaran biaya booking Rp' . number_format($fee, 0, ',', '.') . ' berhasil. Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $booking->qr_token . ' di bawah ini.');
+    }
+
+    // Formulir booking yang sama dikirim lagi: jangan buat booking/bayar kedua, tunjukkan yang sudah ada
+    private function bookingAlreadyCreated(Booking $existing, Product $product)
+    {
+        if ((int) $existing->user_id !== (int) Auth::id() || (int) $existing->product_id !== (int) $product->id) {
+            return redirect()->route('product.show', $product)->with('error', FormToken::REUSED_MESSAGE);
+        }
+
+        return redirect()->route('bookings.index')->with('success', 'Booking ini sudah dibuat dan biaya bookingnya sudah tercatat, jadi tidak ditagih lagi. Tunjukkan token ' . $existing->qr_token . ' saat ketemuan.');
     }
 
     public function sellerDashboard()
@@ -345,28 +428,35 @@ class ProductController extends Controller
         ]);
 
         $cleanToken = strtoupper(trim($request->qr_code_token));
-        // Hanya booking untuk barang milik penjual yang sedang login
-        $booking = Booking::where('qr_token', $cleanToken)
-            ->whereHas('product', function ($q) {
-                $q->where('user_id', Auth::id());
-            })->first();
 
-        if (!$booking) {
-            return redirect()->back()->with('error', 'Token QR tidak ditemukan atau tidak valid!');
-        }
+        // Kunci baris booking lalu produk (urutan sama dengan pembatalan) supaya verifikasi dan
+        // pembatalan yang datang bersamaan tidak menghasilkan status yang saling bertentangan.
+        $result = DB::transaction(function () use ($cleanToken) {
+            // Hanya booking untuk barang milik penjual yang sedang login
+            $booking = Booking::where('qr_token', $cleanToken)
+                ->whereHas('product', fn ($q) => $q->where('user_id', Auth::id()))
+                ->lockForUpdate()
+                ->first();
 
-        if ($booking->status_cod === 'Cancelled') {
-            return redirect()->back()->with('error', 'Token QR ini sudah tidak berlaku karena booking-nya dibatalkan.');
-        }
+            if (!$booking) {
+                return 'not_found';
+            }
+            if ($booking->status_cod === 'Cancelled' || $booking->status_cod === 'Completed') {
+                return $booking->status_cod;
+            }
 
-        if ($booking->status_cod === 'Completed') {
-            return redirect()->back()->with('error', 'Token QR ini sudah pernah diverifikasi sebelumnya!');
-        }
+            $booking->update(['status_cod' => 'Completed']);
+            Product::whereKey($booking->product_id)->lockForUpdate()->first()?->update(['status' => 'Sold Out']);
 
-        $booking->update(['status_cod' => 'Completed']);
-        $booking->product->update(['status' => 'Sold Out']);
+            return 'ok';
+        });
 
-        return redirect()->back()->with('success', 'Transaksi COD Sukses! Status barang berubah menjadi Sold Out.');
+        return match ($result) {
+            'ok'        => redirect()->back()->with('success', 'Transaksi COD Sukses! Status barang berubah menjadi Sold Out.'),
+            'Cancelled' => redirect()->back()->with('error', 'Token QR ini sudah tidak berlaku karena booking-nya dibatalkan.'),
+            'Completed' => redirect()->back()->with('error', 'Token QR ini sudah pernah diverifikasi sebelumnya!'),
+            default     => redirect()->back()->with('error', 'Token QR tidak ditemukan atau tidak valid!'),
+        };
     }
 
     public function destroy($id)

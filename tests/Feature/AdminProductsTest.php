@@ -80,12 +80,12 @@ class AdminProductsTest extends TestCase
         $this->actingAs($this->buyer)->get('/')->assertOk()->assertDontSee('Jaket Palsu')->assertSee('Sepatu Aman');
         $this->actingAs($this->buyer)->get(route('product.show', $product))->assertNotFound();
 
-        $this->actingAs($this->buyer)->post(route('product.book', $product->id), [
+        $this->actingAs($this->buyer)->post(route('product.book', $product->id), ['idempotency_key' => $this->formKey(), 
             'lokasi_cod' => 'Tiban Center', 'waktu_cod' => now()->addDay()->toDateTimeString(), 'qris_paid' => 1,
         ])->assertSessionHas('error');
         $this->assertSame(0, Booking::count());
 
-        $this->actingAs($this->buyer)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
+        $this->actingAs($this->buyer)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
             ->assertSessionHas('error');
         $this->assertSame(0, Order::count());
         $this->assertSame('Available', $product->fresh()->status);

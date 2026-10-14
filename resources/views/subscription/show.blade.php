@@ -95,6 +95,7 @@
                     <form action="{{ route('subscription.pay') }}" method="POST" class="mt-4"
                           onsubmit="this.querySelector('button').disabled = true">
                         @csrf
+                        <x-form-token />
                         <button type="submit" class="w-full h-11 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait motion-reduce:transform-none">
                             {{ $isSubscribed ? 'Perpanjang ' . $plan['days'] . ' hari' : 'Bayar Sekarang' }} · {{ $price }}
                         </button>

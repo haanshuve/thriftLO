@@ -21,6 +21,8 @@ class Booking extends Model
 
     public const CANCELLED_BY_BUYER = 'buyer';
     public const CANCELLED_BY_SELLER = 'seller';
+    // Dibatalkan otomatis (mis. migrasi membersihkan booking aktif ganda); cancel_reason berisi catatannya
+    public const CANCELLED_BY_SYSTEM = 'system';
 
     public const BUYER_CANCEL_REASONS = [
         'berubah_pikiran'    => 'Berubah pikiran',
@@ -46,7 +48,20 @@ class Booking extends Model
         'booking_fee',
         'fee_status',
         'paid_at',
+        'idempotency_key',
     ];
+
+    /*
+     * active_product_id = product_id selama booking aktif, NULL setelah selesai/dibatalkan.
+     * Unique index di kolom ini menjamin satu booking aktif per produk di level database,
+     * jadi dua booking bersamaan untuk barang yang sama tidak mungkin sama-sama tersimpan.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Booking $booking) {
+            $booking->active_product_id = $booking->isActive() ? $booking->product_id : null;
+        });
+    }
 
     protected function casts(): array
     {
@@ -86,6 +101,7 @@ class Booking extends Model
             'Cancelled' => match ($this->cancelled_by) {
                 self::CANCELLED_BY_BUYER  => 'Dibatalkan oleh pembeli',
                 self::CANCELLED_BY_SELLER => 'Dibatalkan oleh penjual',
+                self::CANCELLED_BY_SYSTEM => 'Dibatalkan otomatis',
                 default                   => 'Dibatalkan',
             },
             default => (string) $this->status_cod,
@@ -106,6 +122,11 @@ class Booking extends Model
     {
         if (!$this->cancel_reason) {
             return null;
+        }
+
+        // Pembatalan otomatis menyimpan catatan apa adanya, bukan kode alasan
+        if ($this->cancelled_by === self::CANCELLED_BY_SYSTEM) {
+            return $this->cancel_reason;
         }
 
         $reasons = $this->cancelled_by === self::CANCELLED_BY_SELLER ? self::SELLER_CANCEL_REASONS : self::BUYER_CANCEL_REASONS;

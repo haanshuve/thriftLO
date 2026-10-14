@@ -32,6 +32,7 @@ class Order extends Model
         'shipping_address',
         'status',
         'shipped_at',
+        'idempotency_key',
     ];
 
     protected function casts(): array

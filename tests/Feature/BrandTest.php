@@ -31,6 +31,7 @@ class BrandTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
+            'idempotency_key' => $this->formKey(),
             'nama_barang' => 'Sepatu Lari Bekas',
             'mode_jual'   => 'ecer',
             'kategori'    => 'Sepatu',

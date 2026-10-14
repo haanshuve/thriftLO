@@ -110,7 +110,7 @@ class AdminShoppingRestrictionTest extends TestCase
     {
         $product = $this->product();
 
-        $this->actingAs($this->admin)->post(route('product.book', $product->id), [
+        $this->actingAs($this->admin)->post(route('product.book', $product->id), ['idempotency_key' => $this->formKey(), 
             'lokasi_cod' => 'Nagoya Hill', 'waktu_cod' => now()->addDay()->toDateTimeString(), 'qris_paid' => 1,
         ])->assertRedirect(route('product.show', $product))
             ->assertSessionHas('error', User::ADMIN_CANNOT_BUY_MESSAGE);
@@ -123,7 +123,7 @@ class AdminShoppingRestrictionTest extends TestCase
     {
         $product = $this->product();
 
-        $this->actingAs($this->admin)->post(route('order.store', $product), ['shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
+        $this->actingAs($this->admin)->post(route('order.store', $product), ['idempotency_key' => $this->formKey(), 'shipping_option' => 0, 'shipping_address' => 'Pekanbaru'])
             ->assertRedirect(route('product.show', $product))
             ->assertSessionHas('error', User::ADMIN_CANNOT_BUY_MESSAGE);
 

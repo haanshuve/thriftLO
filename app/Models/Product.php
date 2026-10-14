@@ -26,6 +26,7 @@ class Product extends Model
         'video_proof_path',
         'shipping_options',
         'status',
+        'idempotency_key',
     ];
 
     protected function casts(): array

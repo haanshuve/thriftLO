@@ -28,6 +28,7 @@ class SellerDashboardTest extends TestCase
     private function validProductPayload(array $overrides = []): array
     {
         return array_merge([
+            'idempotency_key' => $this->formKey(),
             'nama_barang' => 'Sepatu Boots Kulit',
             'mode_jual' => 'ecer',
             'kategori' => 'Sepatu',

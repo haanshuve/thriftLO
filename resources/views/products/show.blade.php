@@ -167,6 +167,7 @@
                         <!-- Pilih pengiriman -->
                         <form id="pengiriman" data-method="ship" action="{{ route('order.store', $product) }}" method="POST" class="rounded-xl border border-slate-200 p-4 space-y-3 scroll-mt-20">
                             @csrf
+                            <x-form-token />
                             <div>
                                 <h2 class="font-semibold text-slate-900">Pilih Pengiriman</h2>
                                 <p class="text-sm text-slate-500 mt-0.5">Dikirim dari {{ $seller->isInBatam() || $seller->kota_lapak ? $seller->locationLabel() : 'luar Batam' }}.</p>
