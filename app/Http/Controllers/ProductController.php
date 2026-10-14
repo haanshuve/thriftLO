@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Booking;
@@ -18,15 +19,23 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // Produk di atas kuota gratis milik penjual tanpa langganan tidak ditampilkan
-        $query = Product::with('user')->visibleInCatalog();
+        $query = Product::with(['user', 'brand'])->visibleInCatalog();
 
-        // Fitur Pencarian (Search) berdasarkan Judul atau Deskripsi Barang
+        // Fitur Pencarian (Search) berdasarkan Judul, Deskripsi, atau Merek Barang
         if ($request->has('search') && !empty($request->search)) {
             $keyword = $request->search;
             $query->where(function($q) use ($keyword) {
                 $q->where('title', 'like', '%' . $keyword . '%')
-                  ->orWhere('description', 'like', '%' . $keyword . '%');
+                  ->orWhere('description', 'like', '%' . $keyword . '%')
+                  ->orWhere('brand_other', 'like', '%' . $keyword . '%')
+                  ->orWhereHas('brand', fn ($b) => $b->where('name', 'like', '%' . $keyword . '%'));
             });
+        }
+
+        // Filter merek (?merek=slug), bisa digabung dengan pencarian dan kategori
+        $activeBrand = $request->filled('merek') ? Brand::active()->where('slug', $request->merek)->first() : null;
+        if ($request->filled('merek')) {
+            $query->where('brand_id', $activeBrand?->id ?? 0);
         }
 
         if ($request->has('mode') && $request->mode != 'all') {
@@ -45,7 +54,14 @@ class ProductController extends Controller
 
         $categories = Category::options();
 
-        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories'));
+        // "Belanja berdasarkan merek": merek aktif yang punya barang tayang, terbanyak dulu
+        $brandShowcase = Brand::active()->withCatalogCount()->get()
+            ->filter(fn (Brand $b) => $b->catalog_count > 0)
+            ->sortBy([['catalog_count', 'desc'], ['is_popular', 'desc'], ['name', 'asc']])
+            ->take(12)
+            ->values();
+
+        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories', 'brandShowcase', 'activeBrand'));
     }
 
     public function store(Request $request)
@@ -80,7 +96,7 @@ class ProductController extends Controller
     // Halaman detail produk: COD untuk penjual Batam, pilih pengiriman untuk penjual luar Batam
     public function show(Product $product)
     {
-        $product->load('user');
+        $product->load(['user', 'brand']);
         $isOwner = (int) Auth::id() === (int) $product->user_id;
 
         // Produk yang disembunyikan karena kuota penjual habis hanya bisa dilihat pemiliknya
@@ -109,7 +125,7 @@ class ProductController extends Controller
         $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
 
         // Video boleh dikosongkan saat edit: video lama dipertahankan, produk lama tanpa video tetap bisa diedit
-        $this->validateProduct($request, isNew: false);
+        $this->validateProduct($request, isNew: false, currentBrandId: $product->brand_id);
 
         $attributes = $this->productAttributes($request);
 
@@ -137,7 +153,7 @@ class ProductController extends Controller
         return redirect()->route('dashboard')->with('success', 'Barang "' . $product->title . '" berhasil diperbarui.');
     }
 
-    private function validateProduct(Request $request, bool $isNew): void
+    private function validateProduct(Request $request, bool $isNew, ?int $currentBrandId = null): void
     {
         $videoMaxMb = (int) config('thriftlo.video_proof.max_mb');
 
@@ -153,6 +169,12 @@ class ProductController extends Controller
             'nama_barang'     => 'required|string|max:255',
             'mode_jual'       => ['required', Rule::in(['ecer', 'borongan'])],
             'kategori'        => ['required', Rule::in(Category::slugs())],
+            // Merek opsional: id merek aktif dari daftar (atau merek lama produk ini), atau "lainnya" + teks bebas
+            'brand_id'        => ['nullable', Rule::when(
+                $request->input('brand_id') !== self::OTHER_BRAND,
+                [Rule::exists('brands', 'id')->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $currentBrandId ?? 0))]
+            )],
+            'brand_other'     => ['nullable', 'required_if:brand_id,' . self::OTHER_BRAND, 'string', 'max:60'],
             'harga'           => 'required|numeric|min:0',
             'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
             // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
@@ -167,6 +189,9 @@ class ProductController extends Controller
         ], [
             'nama_barang.required' => 'Nama barang wajib diisi.',
             'kategori.in'          => 'Pilih kategori dari daftar yang tersedia.',
+            'brand_id.exists'      => 'Pilih merek dari daftar, atau pilih "Merek lain" lalu ketik mereknya.',
+            'brand_other.required_if' => 'Tulis nama mereknya, atau kosongkan pilihan merek kalau barangnya tanpa merek.',
+            'brand_other.max'      => 'Nama merek maksimal 60 karakter.',
             'grade.in'             => 'Pilih grade kondisi dari daftar yang tersedia.',
             'harga.required'       => 'Harga wajib diisi.',
             'harga.numeric'        => 'Harga harus berupa angka.',
@@ -206,7 +231,29 @@ class ProductController extends Controller
             'grade'            => $request->grade,
             'description'      => $request->deskripsi,
             'shipping_options' => $shipping ?: null,
+            ...$this->brandAttributes($request),
         ];
+    }
+
+    // Nilai dropdown merek untuk "Merek lain" (input teks bebas)
+    public const OTHER_BRAND = 'lainnya';
+
+    /** @return array{brand_id: ?int, brand_other: ?string} */
+    private function brandAttributes(Request $request): array
+    {
+        $choice = $request->input('brand_id');
+
+        if ($choice === self::OTHER_BRAND) {
+            $other = trim((string) $request->input('brand_other'));
+            // Merek yang diketik ternyata ada di daftar: simpan sebagai merek daftar supaya ikut tampil di halaman merek
+            $known = Brand::findActiveByName($other);
+
+            return $known
+                ? ['brand_id' => $known->id, 'brand_other' => null]
+                : ['brand_id' => null, 'brand_other' => $other];
+        }
+
+        return ['brand_id' => filled($choice) ? (int) $choice : null, 'brand_other' => null];
     }
 
     public function bookProduct(Request $request, $id)

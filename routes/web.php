@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\BookingCancellationController;
+use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
@@ -16,6 +17,8 @@ use App\Http\Controllers\SubscriptionController;
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
 Route::get('/product/{product}', [ProductController::class, 'show'])->name('product.show');
+Route::get('/merek', [BrandController::class, 'index'])->name('brands.index');
+Route::get('/merek/{brand}', [BrandController::class, 'show'])->name('brands.show');
 
 // Middleware Autentikasi Umum (Buyer & Seller)
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -94,6 +97,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/kategori', [Admin\CategoryController::class, 'store'])->name('categories.store');
     Route::put('/kategori/{category}', [Admin\CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/kategori/{category}', [Admin\CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    Route::get('/merek', [Admin\BrandController::class, 'index'])->name('brands');
+    Route::post('/merek', [Admin\BrandController::class, 'store'])->name('brands.store');
+    Route::put('/merek/{brand:id}', [Admin\BrandController::class, 'update'])->name('brands.update');
+    Route::patch('/merek/{brand:id}/status', [Admin\BrandController::class, 'toggle'])->name('brands.toggle');
+    Route::delete('/merek/{brand:id}', [Admin\BrandController::class, 'destroy'])->name('brands.destroy');
 
     Route::get('/laporan', [Admin\ReportController::class, 'index'])->name('reports');
 });

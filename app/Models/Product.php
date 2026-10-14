@@ -15,6 +15,8 @@ class Product extends Model
         'title',
         'description',
         'kategori',
+        'brand_id',
+        'brand_other',
         'mode_jual',
         'grade',
         'price',
@@ -108,6 +110,23 @@ class Product extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    // Merek dari daftar, atau merek lain yang diketik penjual; null kalau tanpa merek
+    public function brandName(): ?string
+    {
+        return $this->brand?->name ?? ($this->brand_other ?: null);
+    }
+
+    // Halaman merek hanya untuk merek dari daftar yang masih aktif
+    public function brandUrl(): ?string
+    {
+        return $this->brand?->is_active ? route('brands.show', $this->brand) : null;
     }
 
     public function bookings()

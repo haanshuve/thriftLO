@@ -55,9 +55,36 @@
                         · {{ $product->grade ?: 'Preloved' }}
                         @if($product->mode_jual === 'borongan') · 📦 Borongan @endif
                     </p>
+                    @if($brandName = $product->brandName())
+                        <p class="mt-1.5 text-sm font-bold uppercase tracking-wide text-slate-600">
+                            @if($brandUrl = $product->brandUrl())
+                                <a href="{{ $brandUrl }}" class="hover:text-emerald-700 hover:underline">{{ $brandName }}</a>
+                            @else
+                                {{ $brandName }}
+                            @endif
+                        </p>
+                    @endif
                     <h1 class="mt-1 text-xl sm:text-2xl font-bold text-slate-900 leading-snug">{{ $product->title }}</h1>
                     <p class="mt-2 text-2xl sm:text-3xl font-black text-emerald-700 tabular-nums">{{ $rupiah($price) }}</p>
                     <p class="mt-0.5 text-xs text-slate-500">Harga pas, sesuai yang tertera.</p>
+                    @if($brandName)
+                        <p class="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900 leading-relaxed">
+                            ℹ️ Merek diisi oleh penjual. ThriftLO tidak menjamin keaslian barang.
+                            Cek dulu
+                            @if($product->hasVideoProof())
+                                <a href="#videoProofTitle" class="font-semibold underline">Video Proof</a>
+                            @else
+                                foto barangnya
+                            @endif
+                            dan tanyakan detail ke penjual lewat
+                            @if($isOwner)
+                                chat
+                            @else
+                                <a href="{{ route('chat.index', ['user_id' => $product->user_id, 'product_id' => $product->id]) }}" class="font-semibold underline">chat</a>
+                            @endif
+                            sebelum membeli.
+                        </p>
+                    @endif
                 </div>
 
                 <!-- Penjual -->

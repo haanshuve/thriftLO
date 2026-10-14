@@ -43,6 +43,9 @@
                 @if($onHome && $activeKategori !== 'all')
                     <input type="hidden" name="kategori" value="{{ $activeKategori }}">
                 @endif
+                @if($onHome && request()->filled('merek'))
+                    <input type="hidden" name="merek" value="{{ request('merek') }}">
+                @endif
                 <label for="search" class="sr-only">Cari barang preloved</label>
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input type="search" id="search" name="search" value="{{ $onHome ? request('search') : '' }}" placeholder="Cari jaket, sepatu, kamera..."
@@ -83,13 +86,13 @@
             <!-- Kategori (chip horizontal) -->
             <div id="kategori" class="max-w-7xl mx-auto px-4 sm:px-6 pb-3 scroll-mt-20">
                 <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <a href="{{ route('home', array_filter(['search' => request('search')])) }}"
+                    <a href="{{ route('home', array_filter(['search' => request('search'), 'merek' => request('merek')])) }}"
                        class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm font-semibold transition {{ $activeKategori === 'all' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-700' }}"
                        @if($activeKategori === 'all') aria-current="page" @endif>
                         🛍️ Semua
                     </a>
                     @foreach($categories as $value => $cat)
-                        <a href="{{ route('home', array_filter(['kategori' => $value, 'search' => request('search')])) }}"
+                        <a href="{{ route('home', array_filter(['kategori' => $value, 'search' => request('search'), 'merek' => request('merek')])) }}"
                            class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-sm font-semibold transition {{ $activeKategori === $value ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-700' }}"
                            @if($activeKategori === $value) aria-current="page" @endif>
                             <span aria-hidden="true">{{ $cat['icon'] }}</span> {{ $cat['label'] }}

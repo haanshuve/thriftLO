@@ -30,6 +30,34 @@
     </div>
 </div>
 
+@php
+    // Merek aktif, plus merek lama produk ini kalau sudah dinonaktifkan admin
+    $brandOptions = \App\Models\Brand::where(fn ($q) => $q->active()->orWhere('id', $product?->brand_id ?? 0))->ordered()->get(['id', 'name']);
+    $otherBrand = \App\Http\Controllers\ProductController::OTHER_BRAND;
+    $brandChoice = (string) old('brand_id', $product?->brand_id ?? ($product?->brand_other ? $otherBrand : ''));
+    $brandError = $errors->product->first('brand_id') ?: $errors->product->first('brand_other');
+@endphp
+<div x-data="{ brand: @js($brandChoice) }">
+    <label for="brand_id" class="block text-sm font-semibold text-slate-700 mb-1">Merek <span class="font-normal text-slate-400">(opsional)</span></label>
+    <select id="brand_id" name="brand_id" x-model="brand" class="{{ $input }}">
+        <option value="" @selected($brandChoice === '')>Tanpa merek / tidak tahu</option>
+        @foreach($brandOptions as $brandOption)
+            <option value="{{ $brandOption->id }}" @selected($brandChoice === (string) $brandOption->id)>{{ $brandOption->name }}</option>
+        @endforeach
+        <option value="{{ $otherBrand }}" @selected($brandChoice === $otherBrand)>Merek lain…</option>
+    </select>
+    <div x-show="brand === @js($otherBrand)" class="mt-2" @if($brandChoice !== $otherBrand) style="display: none" @endif>
+        <label for="brand_other" class="sr-only">Nama merek lain</label>
+        <input type="text" id="brand_other" name="brand_other" value="{{ old('brand_other', $product?->brand_other) }}" maxlength="60"
+               placeholder="Tulis nama mereknya, mis. Kickers" class="{{ $input }}">
+    </div>
+    @if($brandError)
+        <p class="mt-1 text-sm text-rose-600" role="alert">{{ $brandError }}</p>
+    @else
+        <p class="text-xs text-slate-400 mt-1">Isi sesuai label asli barang. Pembeli bisa mencari barang berdasarkan merek.</p>
+    @endif
+</div>
+
 <div class="grid grid-cols-2 gap-3">
     <div>
         <label for="harga" class="block text-sm font-semibold text-slate-700 mb-1">Harga (Rp)</label>

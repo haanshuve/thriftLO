@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Booking;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
@@ -15,14 +16,14 @@ class AdminPanelTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const PAGES = ['admin.dashboard', 'admin.sellers', 'admin.users', 'admin.products', 'admin.transactions', 'admin.categories', 'admin.reports'];
+    private const PAGES = ['admin.dashboard', 'admin.sellers', 'admin.users', 'admin.products', 'admin.transactions', 'admin.categories', 'admin.brands', 'admin.reports'];
 
     /** @return list<array{string, string}> [method, url] semua rute admin, dengan parameter berisi data asli */
     private function adminRoutes(): array
     {
         $seller = User::factory()->create(['role' => 'penjual', 'seller_status' => 'pending']);
         $product = Product::create(['user_id' => $seller->id, 'title' => 'Barang', 'price' => 1000, 'image_url' => 'p.jpg', 'status' => 'Available']);
-        $params = ['id' => $seller->id, 'user' => $seller->id, 'product' => $product->id, 'category' => Category::first()->id];
+        $params = ['id' => $seller->id, 'user' => $seller->id, 'product' => $product->id, 'category' => Category::first()->id, 'brand' => Brand::first()->id];
 
         $routes = collect(Route::getRoutes()->getRoutesByName())
             ->filter(fn ($route, $name) => str_starts_with($name, 'admin.'))
@@ -33,7 +34,7 @@ class AdminPanelTest extends TestCase
             ->values()
             ->all();
 
-        $this->assertGreaterThanOrEqual(17, count($routes), 'Semua rute admin harus ikut diuji');
+        $this->assertGreaterThanOrEqual(22, count($routes), 'Semua rute admin harus ikut diuji');
 
         return $routes;
     }
