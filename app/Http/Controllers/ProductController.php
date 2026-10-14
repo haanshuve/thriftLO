@@ -57,6 +57,12 @@ class ProductController extends Controller
 
         $categories = Category::options();
 
+        // "Belanja berdasarkan kategori": jumlah barang tayang per kategori dalam satu query
+        $categoryCounts = Product::visibleInCatalog()
+            ->selectRaw('kategori, COUNT(*) as total')
+            ->groupBy('kategori')
+            ->pluck('total', 'kategori');
+
         // "Belanja berdasarkan merek": merek aktif yang punya barang tayang, terbanyak dulu
         $brandShowcase = Brand::active()->withCatalogCount()->get()
             ->filter(fn (Brand $b) => $b->catalog_count > 0)
@@ -64,7 +70,7 @@ class ProductController extends Controller
             ->take(12)
             ->values();
 
-        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories', 'brandShowcase', 'activeBrand'));
+        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories', 'categoryCounts', 'brandShowcase', 'activeBrand'));
     }
 
     public function store(Request $request)

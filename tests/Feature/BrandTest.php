@@ -209,6 +209,49 @@ class BrandTest extends TestCase
 
     // --- Section beranda ---
 
+    public function test_home_shows_category_grid_then_brand_section_before_catalog(): void
+    {
+        $this->product('Sepatu Nike Air', $this->brand('Nike'));
+
+        $html = $this->get('/')->assertOk()
+            ->assertSee('Belanja berdasarkan kategori')
+            ->assertSee('Belanja berdasarkan merek')
+            ->getContent();
+
+        $grid = strpos($html, 'id="judulKategori"');
+        $brands = strpos($html, 'id="judulMerek"');
+        $catalog = strpos($html, 'id="judulKatalog"');
+        $this->assertNotFalse($grid);
+        $this->assertTrue($grid < $brands && $brands < $catalog, 'Urutan harus: grid kategori, merek, katalog');
+
+        // Kartu kategori menautkan ke filter kategori dan menampilkan jumlah barang tayang
+        $gridHtml = substr($html, $grid, $brands - $grid);
+        $this->assertStringContainsString(e(route('home', ['kategori' => 'Sepatu'])), $gridHtml);
+        $this->assertMatchesRegularExpression('/Sepatu<\/span>\s*<span[^>]*>1 barang</', $gridHtml);
+        $this->assertMatchesRegularExpression('/Tas<\/span>\s*<span[^>]*>0 barang</', $gridHtml);
+    }
+
+    public function test_category_grid_stays_but_brand_section_hidden_without_branded_products(): void
+    {
+        $this->product('Kemeja Polos');
+
+        $this->get('/')->assertOk()
+            ->assertSee('id="judulKategori"', false)
+            ->assertDontSee('id="judulMerek"', false);
+    }
+
+    public function test_category_grid_and_brand_section_hidden_on_filtered_catalog(): void
+    {
+        $this->product('Sepatu Nike Air', $this->brand('Nike'));
+
+        foreach ([['kategori' => 'Sepatu'], ['search' => 'nike'], ['merek' => 'nike']] as $filter) {
+            $this->get(route('home', $filter))->assertOk()
+                ->assertSee('Sepatu Nike Air')
+                ->assertDontSee('id="judulKategori"', false)
+                ->assertDontSee('id="judulMerek"', false);
+        }
+    }
+
     public function test_home_brand_section_is_hidden_when_no_branded_products(): void
     {
         $this->product('Kemeja Polos');

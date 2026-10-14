@@ -50,7 +50,25 @@
             </div>
         @endif
 
-        {{-- Belanja berdasarkan merek: hanya merek yang punya barang tayang --}}
+        {{-- Belanja berdasarkan kategori: grid kartu kategori dengan jumlah barang tayang --}}
+        @if(!$isFiltered && !empty($categories))
+            <section aria-labelledby="judulKategori">
+                <h2 id="judulKategori" class="text-base sm:text-lg font-bold text-slate-900 mb-3">Belanja berdasarkan kategori</h2>
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
+                    @foreach($categories as $value => $cat)
+                        @php $count = (int) ($categoryCounts[$value] ?? 0); @endphp
+                        <a href="{{ route('home', ['kategori' => $value]) }}"
+                           class="group flex flex-col items-center text-center rounded-xl border border-slate-200/80 bg-white px-2 py-3 shadow-sm shadow-slate-200/70 transition hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-200 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+                            <span class="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-emerald-50 flex items-center justify-center text-2xl transition group-hover:bg-emerald-100" aria-hidden="true">{{ $cat['icon'] }}</span>
+                            <span class="mt-1.5 text-sm font-semibold text-slate-900 group-hover:text-emerald-700 truncate max-w-full">{{ $cat['label'] }}</span>
+                            <span class="text-[11px] text-slate-500">{{ $count }} barang</span>
+                        </a>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+
+        {{-- Belanja berdasarkan merek: tepat setelah grid kategori, hanya merek yang punya barang tayang --}}
         @if(!$isFiltered && $brandShowcase->isNotEmpty())
             <section aria-labelledby="judulMerek">
                 <div class="flex items-baseline justify-between mb-3">
