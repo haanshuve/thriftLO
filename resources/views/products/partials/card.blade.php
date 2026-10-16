@@ -19,9 +19,9 @@
     $detailUrl = route('product.show', $p);
 @endphp
 
-<article class="group bg-white rounded-xl border border-slate-200/80 overflow-hidden flex flex-col shadow-sm shadow-slate-200/70 transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-200 focus-within:ring-2 focus-within:ring-emerald-500/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+<article class="group w-full bg-white rounded-xl border border-slate-200/80 overflow-hidden flex flex-col shadow-sm shadow-slate-200/70 transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-200 focus-within:ring-2 focus-within:ring-emerald-500/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
     <a href="{{ $detailUrl }}" class="relative block aspect-square bg-slate-100 overflow-hidden animate-pulse" aria-label="Lihat detail {{ $name }}">
-        <img src="{{ $img }}" alt="{{ $name }}" loading="lazy"
+        <img src="{{ $img }}" alt="{{ $name }}" loading="lazy" decoding="async"
              class="img-fade w-full h-full object-cover opacity-0 transition duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100 {{ $isAvailable ? '' : 'grayscale-[40%]' }}"
              onload="this.classList.remove('opacity-0'); this.parentElement.classList.remove('animate-pulse')"
              onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=500&q=80'">
@@ -40,9 +40,9 @@
     <div class="p-2.5 sm:p-3 flex flex-col flex-1">
         @if($brandName = $p->brandName())
             @if($brandUrl = $p->brandUrl())
-                <a href="{{ $brandUrl }}" class="mb-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500 hover:text-emerald-700 truncate">{{ $brandName }}</a>
+                <a href="{{ $brandUrl }}" class="mb-1 self-start max-w-full inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 truncate">{{ $brandName }}</a>
             @else
-                <p class="mb-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-500 truncate">{{ $brandName }}</p>
+                <p class="mb-1 self-start max-w-full inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600 truncate">{{ $brandName }}</p>
             @endif
         @endif
         <h3class="text-sm text-slate-800 leading-snug line-clamp-2 min-h-[2.5rem]" title="{{ $name }}">

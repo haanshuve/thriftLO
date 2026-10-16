@@ -42,7 +42,7 @@
                     <label class="block text-xs font-black text-gray-700 mb-2 uppercase tracking-wider">Tahap 1: Pilih Peran Akun</label>
                     <div class="grid grid-cols-2 gap-3">
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="pembeli" id="rolePembeli" @checked(old('role', 'pembeli') === 'pembeli') onchange="toggleSellerSection()" class="peer sr-only">
+                            <input type="radio" name="role" value="pembeli" id="rolePembeli" @checked(old('role', request('role') === 'penjual' ? 'penjual' : 'pembeli') === 'pembeli') onchange="toggleSellerSection()" class="peer sr-only">
                             <div class="p-3 text-center border-2 rounded-2xl border-gray-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/50 transition">
                                 <span class="text-xl block mb-1">🛍️</span>
                                 <span class="block text-xs font-black text-gray-800">Pembeli</span>
@@ -51,7 +51,7 @@
                         </label>
 
                         <label class="cursor-pointer">
-                            <input type="radio" name="role" value="penjual" id="rolePenjual" @checked(old('role') === 'penjual') onchange="toggleSellerSection()" class="peer sr-only">
+                            <input type="radio" name="role" value="penjual" id="rolePenjual" @checked(old('role', request('role') === 'penjual' ? 'penjual' : 'pembeli') === 'penjual') onchange="toggleSellerSection()" class="peer sr-only">
                             <div class="p-3 text-center border-2 rounded-2xl border-gray-200 peer-checked:border-emerald-600 peer-checked:bg-emerald-50/50 transition">
                                 <span class="text-xl block mb-1">🏬</span>
                                 <span class="block text-xs font-black text-gray-800">Penjual</span>

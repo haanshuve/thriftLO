@@ -224,11 +224,16 @@ class VideoProofTest extends TestCase
 
     public function test_catalog_shows_video_proof_badge_only_for_products_with_video(): void
     {
+        // Lencana di kartu (title attribute unik untuk lencana Video Proof)
+        $badge = 'Penjual mengunggah video kondisi asli barang';
         $this->product($this->seller, 'product-videos/kondisi.mp4');
-        $html = $this->get(route('home'))->assertOk()->getContent();
-        $this->assertSame(1, substr_count($html, 'Ada Video Proof'));
+        $html = $this->get(route('home', ['koleksi' => 'baru']))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($html, $badge));
+        // Beranda punya section "Ada Video Proof" karena ada barangnya
+        $this->get(route('home'))->assertOk()->assertSee('id="koleksi-video"', false);
 
         Product::query()->update(['video_proof_path' => null]);
+        $this->get(route('home', ['koleksi' => 'baru']))->assertOk()->assertDontSee($badge);
         $this->get(route('home'))->assertOk()->assertDontSee('Ada Video Proof');
     }
 }

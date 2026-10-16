@@ -220,9 +220,10 @@ class BrandTest extends TestCase
 
         $grid = strpos($html, 'id="judulKategori"');
         $brands = strpos($html, 'id="judulMerek"');
-        $catalog = strpos($html, 'id="judulKatalog"');
+        $catalog = strpos($html, 'id="koleksi-baru"');
         $this->assertNotFalse($grid);
-        $this->assertTrue($grid < $brands && $brands < $catalog, 'Urutan harus: grid kategori, merek, katalog');
+        $this->assertNotFalse($catalog);
+        $this->assertTrue($grid < $brands && $brands < $catalog, 'Urutan harus: grid kategori, merek, section produk');
 
         // Kartu kategori menautkan ke filter kategori dan menampilkan jumlah barang tayang
         $gridHtml = substr($html, $grid, $brands - $grid);
@@ -231,13 +232,39 @@ class BrandTest extends TestCase
         $this->assertMatchesRegularExpression('/Tas<\/span>\s*<span[^>]*>0 barang</', $gridHtml);
     }
 
-    public function test_category_grid_stays_but_brand_section_hidden_without_branded_products(): void
+    // Potongan HTML section merek di beranda (sampai section produk pertama)
+    private function brandSection(string $html): string
+    {
+        $start = strpos($html, 'id="judulMerek"');
+        $this->assertNotFalse($start, 'Section merek seharusnya tampil');
+
+        return substr($html, $start, strpos($html, 'id="koleksi-', $start) - $start);
+    }
+
+    public function test_brand_section_fills_up_with_popular_brands_without_products(): void
     {
         $this->product('Kemeja Polos');
 
-        $this->get('/')->assertOk()
-            ->assertSee('id="judulKategori"', false)
-            ->assertDontSee('id="judulMerek"', false);
+        $section = $this->brandSection($this->get('/')->assertOk()->assertSee('id="judulKategori"', false)->getContent());
+
+        // Tanpa produk bermerek: 8 merek populer, pudar, "Belum ada barang", dan tidak bisa diklik
+        $this->assertSame(8, substr_count($section, 'data-brand-empty'));
+        $this->assertSame(8, substr_count($section, 'Belum ada barang'));
+        $this->assertStringNotContainsString(route('brands.show', 'nike'), $section);
+        $this->assertStringContainsString('Nike', $section);
+        $this->assertStringContainsString(route('brands.index'), $section);
+        $this->assertStringNotContainsString('Polo Ralph Lauren', $section); // bukan merek populer
+    }
+
+    public function test_brand_section_shows_brands_with_products_first_then_fills_to_eight(): void
+    {
+        $this->product('Kaos Champion', $this->brand('Champion')); // bukan populer, tapi punya barang
+
+        $section = $this->brandSection($this->get('/')->getContent());
+
+        $this->assertStringContainsString(route('brands.show', 'champion'), $section);
+        $this->assertLessThan(strpos($section, 'data-brand-empty'), strpos($section, 'merek/champion'));
+        $this->assertSame(7, substr_count($section, 'data-brand-empty'));
     }
 
     public function test_category_grid_and_brand_section_hidden_on_filtered_catalog(): void
@@ -252,9 +279,10 @@ class BrandTest extends TestCase
         }
     }
 
-    public function test_home_brand_section_is_hidden_when_no_branded_products(): void
+    public function test_home_brand_section_is_hidden_when_there_are_no_brands_at_all(): void
     {
         $this->product('Kemeja Polos');
+        Brand::query()->update(['is_active' => false]);
 
         $this->get('/')->assertOk()->assertDontSee('Belanja berdasarkan merek');
     }
@@ -275,11 +303,13 @@ class BrandTest extends TestCase
             ->assertSee('2 barang')
             ->getContent();
 
-        $section = substr($html, strpos($html, 'id="judulMerek"'), strpos($html, 'id="judulKatalog"') - strpos($html, 'id="judulMerek"'));
+        $section = $this->brandSection($html);
         $this->assertLessThan(strpos($section, 'merek/nike'), strpos($section, 'merek/adidas'));
+        // Merek tanpa barang tayang (terjual, diturunkan, atau kosong) tidak bisa diklik
         $this->assertStringNotContainsString('merek/puma', $section);
         $this->assertStringNotContainsString('merek/vans', $section);
         $this->assertStringNotContainsString('merek/zara', $section);
+        $this->assertSame(6, substr_count($section, 'data-brand-empty'));
     }
 
     // --- Halaman merek ---

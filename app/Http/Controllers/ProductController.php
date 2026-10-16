@@ -51,26 +51,108 @@ class ProductController extends Controller
 
         $products = $query->latest()->get();
 
-        $totalItems = Product::count();
-        $totalBookings = Booking::count();
-        $wastePreventedKg = ($totalItems * 0.5) + ($totalBookings * 1.2);
+        // Koleksi bertema (?koleksi=...), tujuan tautan "Lihat semua" di beranda. Tambahan saja:
+        // disaring dari hasil query di atas, jadi filter lain tetap berlaku seperti biasa.
+        $collection = array_key_exists((string) $request->query('koleksi'), self::COLLECTIONS) ? $request->query('koleksi') : null;
+        if ($collection) {
+            $products = $products->filter(fn (Product $p) => self::inCollection($p, $collection))->values();
+        }
+
+        $isFiltered = $request->filled('search')
+            || ($request->filled('kategori') && $request->kategori !== 'all')
+            || $request->filled('merek')
+            || $collection !== null;
 
         $categories = Category::options();
 
+        // Bahan beranda hanya dihitung saat tidak ada filter (halaman katalog/hasil cari tidak memakainya)
+        $home = $isFiltered ? [] : $this->homeSections($products);
+
+        return view('welcome', [
+            'products'    => $products,
+            'categories'  => $categories,
+            'activeBrand' => $activeBrand,
+            'collection'  => $collection,
+            'isFiltered'  => $isFiltered,
+            ...$home,
+        ]);
+    }
+
+    // Koleksi bertema di beranda: [judul, deskripsi singkat]
+    public const COLLECTIONS = [
+        'baru'  => ['Baru masuk di Batam', 'Barang preloved yang baru ditayangkan penjual.'],
+        'video' => ['Ada Video Proof', 'Kondisi asli barang bisa kamu lihat lewat video dari penjual.'],
+        'kirim' => ['Bisa dikirim ke seluruh Indonesia', 'Bayar aman lewat escrow, barang dikirim ke alamatmu.'],
+        'cod'   => ['Siap COD di Batam', 'Ketemuan, cek barangnya, lalu bayar di tempat.'],
+    ];
+
+    // "Baru masuk" = semua barang tayang; koleksi lain hanya barang yang masih bisa dibeli
+    private static function inCollection(Product $p, string $key): bool
+    {
+        if ($key === 'baru') {
+            return true;
+        }
+
+        return $p->status === 'Available' && match ($key) {
+            'video' => $p->hasVideoProof(),
+            'kirim' => !empty($p->shippingOptions()),
+            'cod'   => $p->supportsCod(),
+            default => false,
+        };
+    }
+
+    /**
+     * Data beranda tanpa filter. Semua dari data asli: koleksi disaring dari produk yang sudah
+     * dimuat (tanpa query tambahan), angka statistik yang nol tidak ditampilkan.
+     */
+    private function homeSections($products): array
+    {
         // "Belanja berdasarkan kategori": jumlah barang tayang per kategori dalam satu query
         $categoryCounts = Product::visibleInCatalog()
             ->selectRaw('kategori, COUNT(*) as total')
             ->groupBy('kategori')
             ->pluck('total', 'kategori');
 
-        // "Belanja berdasarkan merek": merek aktif yang punya barang tayang, terbanyak dulu
-        $brandShowcase = Brand::active()->withCatalogCount()->get()
-            ->filter(fn (Brand $b) => $b->catalog_count > 0)
-            ->sortBy([['catalog_count', 'desc'], ['is_popular', 'desc'], ['name', 'asc']])
-            ->take(12)
+        $sections = collect(self::COLLECTIONS)
+            ->map(function (array $meta, string $key) use ($products) {
+                $items = $products->filter(fn (Product $p) => self::inCollection($p, $key));
+
+                return ['key' => $key, 'title' => $meta[0], 'subtitle' => $meta[1], 'total' => $items->count(), 'products' => $items->take(10)->values()];
+            })
+            ->filter(fn (array $s) => $s['total'] > 0)
             ->values();
 
-        return view('welcome', compact('products', 'wastePreventedKg', 'totalBookings', 'categories', 'categoryCounts', 'brandShowcase', 'activeBrand'));
+        $stats = array_filter([
+            'barang tayang'         => $products->count(),
+            'penjual terverifikasi' => User::where('role', 'penjual')->where('seller_status', 'verified')->whereNull('deactivated_at')->count(),
+            'transaksi selesai'     => Booking::where('status_cod', 'Completed')->count() + Order::where('status', Order::COMPLETED)->count(),
+        ]);
+
+        return [
+            'categoryCounts' => $categoryCounts,
+            'sections'       => $sections,
+            'stats'          => $stats,
+            'brandShowcase'  => $this->brandShowcase(),
+        ];
+    }
+
+    /**
+     * "Belanja berdasarkan merek": merek aktif yang punya barang tayang lebih dulu (terbanyak di
+     * depan). Kalau kurang dari 8, dilengkapi merek populer yang belum punya barang.
+     */
+    private function brandShowcase()
+    {
+        $brands = Brand::active()->withCatalogCount()->get();
+
+        $withStock = $brands->filter(fn (Brand $b) => $b->catalog_count > 0)
+            ->sortBy([['catalog_count', 'desc'], ['is_popular', 'desc'], ['name', 'asc']])
+            ->take(12);
+
+        $fill = $brands->filter(fn (Brand $b) => (int) $b->catalog_count === 0 && $b->is_popular)
+            ->sortBy([['sort_order', 'asc'], ['name', 'asc']])
+            ->take(max(0, 8 - $withStock->count()));
+
+        return $withStock->concat($fill)->values();
     }
 
     public function store(Request $request)

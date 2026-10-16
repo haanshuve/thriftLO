@@ -139,11 +139,18 @@ class SellerDashboardTest extends TestCase
         $seller = $this->seller();
         Message::create(['sender_id' => $seller->id, 'receiver_id' => $buyer->id, 'message' => 'Halo']);
 
+        // Beranda: kategori tampil sebagai grid, bukan chip (tidak dobel)
         $this->actingAs($buyer)->get('/')->assertOk()
-            ->assertSee('🛍️ Semua')
+            ->assertDontSee('🛍️ Semua')
+            ->assertSee('Belanja berdasarkan kategori')
             ->assertSee('Elektronik')
             ->assertSee('Chat, 1 pesan belum dibaca', false)
             ->assertSee('Navigasi bawah', false);
+
+        // Halaman katalog/hasil pencarian tetap punya chip kategori untuk ganti filter
+        $this->actingAs($buyer)->get(route('home', ['search' => 'jaket']))->assertOk()
+            ->assertSee('🛍️ Semua')
+            ->assertSee('Elektronik');
     }
 
     public function test_dashboard_has_no_category_chips_but_keeps_navigation(): void
