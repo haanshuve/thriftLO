@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Hanya data referensi. Produk contoh sengaja tidak di-seed dari sini (jalankan manual di lokal).
+        $this->call(ReferenceDataSeeder::class);
+
         // User::factory(10)->create();
 
         User::factory()->create([

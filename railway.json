@@ -4,7 +4,7 @@
     "builder": "RAILPACK"
   },
   "deploy": {
-    "preDeployCommand": ["php artisan migrate --force"],
+    "preDeployCommand": ["php artisan migrate --force && php artisan db:seed --class=ReferenceDataSeeder --force"],
     "healthcheckPath": "/up",
     "healthcheckTimeout": 180,
     "restartPolicyType": "ON_FAILURE",
