@@ -105,12 +105,9 @@ class OrderController extends Controller
     {
         abort_unless((int) $order->product->user_id === (int) Auth::id(), 403);
 
-        if ($order->status !== Order::AWAITING_SHIPMENT) {
+        if (!$order->markShipped()) {
             return back()->with('error', 'Pesanan ini sudah ditandai dikirim.');
         }
-
-        $order->update(['status' => Order::SHIPPED, 'shipped_at' => now()]);
-        $order->product->update(['status' => 'Sold Out']);
 
         return back()->with('success', 'Pesanan "' . $order->product->title . '" ditandai sudah dikirim.');
     }

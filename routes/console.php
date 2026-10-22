@@ -64,4 +64,6 @@ Artisan::command('thriftlo:release-escrow', function () {
     return 0;
 })->purpose('Cairkan dana escrow pesanan Kirim yang melewati batas konfirmasi pembeli');
 
-Schedule::command('thriftlo:release-escrow')->hourly();
+// Tiap pesanan tetap dicairkan sekali (Order::release mengunci baris); withoutOverlapping hanya
+// mencegah dua run scheduler menumpuk kalau run sebelumnya belum selesai.
+Schedule::command('thriftlo:release-escrow')->hourly()->withoutOverlapping();

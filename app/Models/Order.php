@@ -83,6 +83,26 @@ class Order extends Model
         return min((int) config('thriftlo.escrow.platform_fee'), $total);
     }
 
+    // Penjual menandai dikirim. Baris dikunci dan status dicek ulang supaya klik ganda tidak
+    // menggeser shipped_at (yang menentukan jadwal auto-release escrow).
+    public function markShipped(): bool
+    {
+        return DB::transaction(function () {
+            $locked = static::whereKey($this->id)->lockForUpdate()->first();
+
+            if (!$locked || $locked->status !== self::AWAITING_SHIPMENT) {
+                return false;
+            }
+
+            $locked->update(['status' => self::SHIPPED, 'shipped_at' => now()]);
+            Product::whereKey($locked->product_id)->lockForUpdate()->first()?->update(['status' => 'Sold Out']);
+
+            $this->setRawAttributes($locked->getAttributes(), true);
+
+            return true;
+        });
+    }
+
     // Cairkan dana ke penjual sambil memotong komisi. Baris dikunci supaya konfirmasi pembeli
     // dan auto-release yang berjalan bersamaan tidak mencairkan dua kali.
     public function release(string $method): bool
