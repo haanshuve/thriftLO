@@ -54,7 +54,7 @@ class ReportController extends Controller
                 'codBookings'   => $b->count(),
                 'cancellations' => $b->where('status_cod', 'Cancelled')->count(),
                 'kirimOrders'   => $orders->get($key, collect())->count(),
-                'bookingFees'   => (int) $b->whereNotNull('fee_status')->sum('booking_fee'),
+                'bookingFees'   => (int) $b->whereIn('fee_status', [Booking::FEE_PAID, Booking::FEE_FORFEITED])->sum('booking_fee'),
                 'commission'    => (int) $released->get($key, collect())->sum('biaya_platform'),
             ]);
         }

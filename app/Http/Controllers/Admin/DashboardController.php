@@ -32,8 +32,8 @@ class DashboardController extends Controller
             'kirimOrders'     => Order::count(),
             // Komisi hanya dari pesanan yang dananya sudah cair ke penjual
             'commission'      => (int) Order::whereNotNull('released_at')->sum('biaya_platform'),
-            // Semua biaya booking yang dibayar pembeli menjadi milik platform, termasuk yang dibatalkan
-            'bookingFees'     => (int) Booking::whereNotNull('fee_status')->sum('booking_fee'),
+            // Biaya booking milik platform, termasuk booking yang dibatalkan; refund pada data lama tidak dihitung
+            'bookingFees'     => (int) Booking::whereIn('fee_status', [Booking::FEE_PAID, Booking::FEE_FORFEITED])->sum('booking_fee'),
             'cancellations'   => Booking::where('status_cod', 'Cancelled')->count(),
         ];
 

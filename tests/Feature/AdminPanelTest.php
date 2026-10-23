@@ -98,7 +98,7 @@ class AdminPanelTest extends TestCase
             ->assertSee('Toko Antre')
             ->assertSee('Rp3.000')   // komisi Kirim
             ->assertSee('Rp4.000')   // biaya booking: pembatalan pembeli dan penjual sama-sama milik platform
-            ->assertSee('Semua yang dibayar, termasuk booking batal')
+            ->assertSee('Termasuk booking batal, tanpa refund data lama')
             ->getContent();
 
         $this->assertMatchesRegularExpression('/Total akun<\/p>\s*<p[^>]*>5</', $html);

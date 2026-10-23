@@ -109,13 +109,20 @@ class BookingFeeRuleTest extends TestCase
         $this->booking('Jaket Denim', 'TL-AAAA1111');                                    // masih aktif, dibayar
         $this->booking('Sepatu Lari', 'TL-BBBB2222')->cancelByBuyer(null);               // batal oleh pembeli
         $this->booking('Kamera Analog', 'TL-CCCC3333')->cancelBySeller('lainnya', true); // batal oleh penjual
+        // Data lama berstatus refunded tidak dihitung
+        $this->booking('Tas Kulit', 'TL-DDDD4444')->forceFill([
+            'status_cod' => 'Cancelled', 'cancelled_by' => Booking::CANCELLED_BY_SELLER, 'fee_status' => Booking::FEE_REFUNDED,
+        ])->save();
 
         $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk()
-            ->assertSee('Rp6.000');
+            ->assertSee('Rp6.000')
+            ->assertDontSee('Rp8.000');
 
         $this->actingAs($admin)->get(route('admin.reports'))->assertOk()
             ->assertSee('Rp6.000')
-            ->assertSee('termasuk booking yang dibatalkan');
+            ->assertDontSee('Rp8.000')
+            ->assertSee('termasuk booking yang dibatalkan')
+            ->assertSee('Refund pada data lama tidak dihitung.');
     }
 
     public function test_legacy_refunded_rows_still_render_without_error(): void
