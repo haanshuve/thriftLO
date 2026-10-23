@@ -63,8 +63,8 @@
                 </dl>
 
                 <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900" role="note">
-                    <p class="font-semibold">⚠️ Biaya booking tidak dapat dikembalikan bila kamu membatalkan.</p>
-                    <p class="mt-0.5">Biaya ini menahan barang khusus untukmu sampai jadwal COD. Kalau penjual yang membatalkan atau tidak hadir, biaya booking dikembalikan.</p>
+                    <p class="font-semibold">⚠️ Biaya booking {{ $rupiahFee }} tidak dapat dikembalikan dan menjadi milik platform.</p>
+                    <p class="mt-0.5">Biaya ini menahan barang khusus untukmu sampai jadwal COD. Biaya tetap tidak dikembalikan dalam kondisi apa pun, termasuk bila kamu atau penjual membatalkan, atau penjual tidak hadir.</p>
                 </div>
 
                 <p class="text-xs text-slate-500">Belum ada biaya yang ditarik. Kamu masih bisa membatalkan di tahap ini tanpa dikenai apa pun.</p>

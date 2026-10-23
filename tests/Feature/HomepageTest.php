@@ -67,7 +67,7 @@ class HomepageTest extends TestCase
             ->assertSee('Terima barang dan konfirmasi')
             // Footer
             ->assertSee('Bantuan singkat')
-            ->assertSee('Biaya booking tidak dapat dikembalikan')
+            ->assertSee('tidak dapat dikembalikan dan menjadi milik platform, baik kamu maupun penjual yang membatalkan')
             ->getContent();
 
         $this->assertSame(4, substr_count($html, 'aria-roledescription="slide"'));

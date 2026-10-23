@@ -430,7 +430,7 @@
                     <input type="hidden" name="booking_id" id="sellerCancelBookingId" value="">
 
                     <p id="sellerCancelFeeNote" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs text-sky-900">
-                        Biaya booking <span id="sellerCancelFee" class="font-semibold"></span> akan dikembalikan ke pembeli dan token QR-nya tidak berlaku lagi.
+                        Biaya booking <span id="sellerCancelFee" class="font-semibold"></span> yang dibayar pembeli tidak dapat dikembalikan dan menjadi milik platform. Token QR-nya tidak berlaku lagi.
                     </p>
 
                     <fieldset>

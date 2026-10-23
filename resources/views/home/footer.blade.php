@@ -28,7 +28,7 @@
                 </div>
                 <div>
                     <dt class="font-semibold text-slate-800">Biaya booking</dt>
-                    <dd>Biaya booking tidak dapat dikembalikan bila kamu membatalkan booking. Bila penjual yang membatalkan, biaya booking dikembalikan.</dd>
+                    <dd>Biaya booking {{ $bookingFee }} tidak dapat dikembalikan dan menjadi milik platform, baik kamu maupun penjual yang membatalkan, juga bila penjual tidak hadir.</dd>
                 </div>
             </dl>
         </div>

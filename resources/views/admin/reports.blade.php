@@ -18,7 +18,7 @@
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
         <div>
             <h1 class="text-lg sm:text-xl font-bold text-slate-900">Laporan</h1>
-            <p class="text-sm text-slate-500 mt-0.5">Aktivitas pengguna dan transaksi per periode. Komisi dihitung saat dana Kirim cair; biaya booking tidak termasuk yang dikembalikan.</p>
+            <p class="text-sm text-slate-500 mt-0.5">Aktivitas pengguna dan transaksi per periode. Komisi dihitung saat dana Kirim cair; biaya booking mencakup semua yang dibayar pembeli, termasuk booking yang dibatalkan, karena tidak dapat dikembalikan dan menjadi milik platform.</p>
         </div>
         <nav class="inline-flex rounded-lg bg-white border border-slate-200 p-1 shrink-0" aria-label="Pilih periode">
             @foreach($periods as $key => [$label])

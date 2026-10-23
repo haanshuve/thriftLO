@@ -67,7 +67,7 @@
             <x-admin.stat label="Booking COD" :value="$num($stats['codBookings'])" :href="route('admin.transactions', ['jenis' => 'cod'])" />
             <x-admin.stat label="Pesanan Kirim" :value="$num($stats['kirimOrders'])" :href="route('admin.transactions', ['jenis' => 'kirim'])" />
             <x-admin.stat label="Komisi Kirim" :value="$rupiah($stats['commission'])" hint="Dari pesanan yang dananya sudah cair" tone="emerald" />
-            <x-admin.stat label="Biaya booking COD" :value="$rupiah($stats['bookingFees'])" hint="Tidak termasuk yang dikembalikan" tone="emerald" />
+            <x-admin.stat label="Biaya booking COD" :value="$rupiah($stats['bookingFees'])" hint="Semua yang dibayar, termasuk booking batal" tone="emerald" />
             <x-admin.stat label="Pembatalan COD" :value="$num($stats['cancellations'])" :tone="$stats['cancellations'] ? 'rose' : 'slate'" :href="route('admin.transactions', ['jenis' => 'cod', 'status' => 'dibatalkan'])" />
         </div>
     </section>

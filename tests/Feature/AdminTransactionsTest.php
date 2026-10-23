@@ -65,7 +65,7 @@ class AdminTransactionsTest extends TestCase
             ->assertSee('Dibayar')
             ->assertSee('Sepatu Lari')
             ->assertSee('Dibatalkan oleh pembeli')
-            ->assertSee('Tidak dikembalikan')
+            ->assertSee('Milik platform')
             ->assertSee('Kamera Analog')
             ->assertSee('Menunggu Dikirim')
             ->assertSee('Lapak Nagoya')
@@ -75,7 +75,8 @@ class AdminTransactionsTest extends TestCase
     public function test_filters_by_type_and_status(): void
     {
         $this->booking('Jaket Denim', 'Pending');
-        $this->booking('Sepatu Lari', 'Cancelled', Booking::FEE_REFUNDED, 'TL-BBBB2222');
+        $this->booking('Sepatu Lari', 'Cancelled', Booking::FEE_FORFEITED, 'TL-BBBB2222')
+            ->forceFill(['cancelled_by' => Booking::CANCELLED_BY_SELLER])->save();
         $this->order('Kamera Analog', Order::AWAITING_SHIPMENT);
 
         $this->actingAs($this->admin)->get(route('admin.transactions', ['jenis' => 'kirim']))->assertOk()
@@ -85,7 +86,9 @@ class AdminTransactionsTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('admin.transactions', ['jenis' => 'cod', 'status' => 'dibatalkan']))->assertOk()
             ->assertSee('Sepatu Lari')
-            ->assertSee('Dikembalikan ke pembeli')
+            ->assertSee('Dibatalkan oleh penjual')
+            ->assertSee('Milik platform')
+            ->assertDontSee('Dikembalikan ke pembeli')
             ->assertDontSee('Jaket Denim')
             ->assertDontSee('Kamera Analog');
 

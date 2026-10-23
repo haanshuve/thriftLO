@@ -136,15 +136,16 @@
                         @php $bySeller = $b->cancelled_by === \App\Models\Booking::CANCELLED_BY_SELLER; @endphp
                         <div class="mx-4 mb-4 rounded-lg border px-3 py-2.5 text-xs space-y-0.5 {{ $bySeller ? 'border-sky-200 bg-sky-50 text-sky-900' : 'border-slate-200 bg-slate-50 text-slate-700' }}">
                             <p class="font-semibold">
-                                {{ $bySeller ? 'Penjual membatalkan booking ini' : ($b->cancelled_by === \App\Models\Booking::CANCELLED_BY_SYSTEM ? 'Booking ini dibatalkan otomatis oleh sistem (biaya booking dikembalikan)' : ($b->cancelled_by ? 'Kamu membatalkan booking ini' : 'Booking ini dibatalkan')) }}{{ $b->cancelled_at ? ' pada ' . $b->cancelled_at->format('d M Y, H:i') : '' }}.
+                                {{ $bySeller ? 'Penjual membatalkan booking ini' : ($b->cancelled_by === \App\Models\Booking::CANCELLED_BY_SYSTEM ? 'Booking ini dibatalkan otomatis oleh sistem' : ($b->cancelled_by ? 'Kamu membatalkan booking ini' : 'Booking ini dibatalkan')) }}{{ $b->cancelled_at ? ' pada ' . $b->cancelled_at->format('d M Y, H:i') : '' }}.
                             </p>
                             @if($b->cancelReasonLabel())
                                 <p>Alasan: {{ $b->cancelReasonLabel() }}</p>
                             @endif
+                            {{-- Status refunded hanya ada di data lama --}}
                             @if($b->fee_status === \App\Models\Booking::FEE_REFUNDED)
                                 <p>✅ Biaya booking {{ $rupiah($b->booking_fee) }} dikembalikan ke kamu.</p>
                             @elseif($b->fee_status === \App\Models\Booking::FEE_FORFEITED)
-                                <p>Biaya booking {{ $rupiah($b->booking_fee) }} tidak dikembalikan.</p>
+                                <p>Biaya booking {{ $rupiah($b->booking_fee) }} tidak dapat dikembalikan dan menjadi milik platform.</p>
                             @endif
                             <p>Token QR booking ini sudah tidak berlaku.</p>
                         </div>
@@ -268,7 +269,7 @@
                 </dl>
 
                 <div id="cancelFeeWarning" class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900" role="note">
-                    <p class="font-bold">⚠️ Biaya booking <span id="cancelFee"></span> yang sudah dibayar tidak dapat dikembalikan.</p>
+                    <p class="font-bold">⚠️ Biaya booking <span id="cancelFee"></span> yang sudah dibayar tidak dapat dikembalikan dan menjadi milik platform.</p>
                     <p class="mt-1 text-xs text-amber-800">Biaya booking menjaga barang tetap tertahan untukmu dan melindungi penjual dari pembatalan sepihak. Setelah dibatalkan, barang tayang lagi di katalog dan token QR-mu tidak berlaku.</p>
                 </div>
 
@@ -284,7 +285,7 @@
 
                 <label class="flex items-start gap-2.5 rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 cursor-pointer has-[:checked]:border-rose-300 has-[:checked]:bg-rose-50/50">
                     <input type="checkbox" id="cancelAgree" name="setuju_konsekuensi" value="1" class="mt-0.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500">
-                    <span id="cancelAgreeText">Saya mengerti dan setuju biaya booking tidak dikembalikan</span>
+                    <span id="cancelAgreeText">Saya mengerti dan setuju biaya booking tidak dapat dikembalikan dan menjadi milik platform</span>
                 </label>
 
                 <p id="cancelError" class="hidden text-sm text-rose-600" role="alert"></p>
@@ -312,12 +313,12 @@
             document.getElementById('cancelSchedule').textContent = d.schedule;
             document.getElementById('cancelStatus').textContent = d.status;
 
-            // Booking lama tanpa biaya booking: tidak ada yang hangus
+            // Booking lama tanpa biaya booking: tidak ada biaya yang menjadi milik platform
             const hasFee = d.fee !== '';
             document.getElementById('cancelFee').textContent = d.fee;
             document.getElementById('cancelFeeWarning').classList.toggle('hidden', !hasFee);
             document.getElementById('cancelAgreeText').textContent = hasFee
-                ? 'Saya mengerti dan setuju biaya booking tidak dikembalikan'
+                ? 'Saya mengerti dan setuju biaya booking tidak dapat dikembalikan dan menjadi milik platform'
                 : 'Saya mengerti barang akan tayang lagi dan token QR-ku tidak berlaku';
 
             const agree = document.getElementById('cancelAgree');

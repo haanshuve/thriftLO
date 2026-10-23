@@ -89,7 +89,7 @@ class AdminPanelTest extends TestCase
 
         $product = Product::create(['user_id' => $seller->id, 'title' => 'Barang', 'price' => 50000, 'image_url' => 'p.jpg', 'status' => 'Booked']);
         Booking::create(['product_id' => $product->id, 'user_id' => $admin->id, 'qr_token' => 'TL-1', 'cod_location' => 'Nagoya', 'cod_schedule' => now(), 'status_cod' => 'Cancelled', 'booking_fee' => 2000, 'fee_status' => Booking::FEE_FORFEITED]);
-        Booking::create(['product_id' => $product->id, 'user_id' => $admin->id, 'qr_token' => 'TL-2', 'cod_location' => 'Nagoya', 'cod_schedule' => now(), 'status_cod' => 'Cancelled', 'booking_fee' => 2000, 'fee_status' => Booking::FEE_REFUNDED]);
+        Booking::create(['product_id' => $product->id, 'user_id' => $admin->id, 'qr_token' => 'TL-2', 'cod_location' => 'Nagoya', 'cod_schedule' => now(), 'status_cod' => 'Cancelled', 'booking_fee' => 2000, 'fee_status' => Booking::FEE_FORFEITED, 'cancelled_by' => Booking::CANCELLED_BY_SELLER]);
         $order = Order::create(['product_id' => $product->id, 'user_id' => $admin->id, 'courier' => 'JNE', 'shipping_cost' => 0, 'item_price' => 50000, 'total_price' => 50000, 'shipping_address' => 'Medan', 'status' => Order::COMPLETED]);
         $order->forceFill(['released_at' => now(), 'biaya_platform' => 3000])->save();
 
@@ -97,7 +97,8 @@ class AdminPanelTest extends TestCase
             ->assertSee('Perlu tindakan')
             ->assertSee('Toko Antre')
             ->assertSee('Rp3.000')   // komisi Kirim
-            ->assertSee('Rp2.000')   // biaya booking (yang dikembalikan tidak dihitung)
+            ->assertSee('Rp4.000')   // biaya booking: pembatalan pembeli dan penjual sama-sama milik platform
+            ->assertSee('Semua yang dibayar, termasuk booking batal')
             ->getContent();
 
         $this->assertMatchesRegularExpression('/Total akun<\/p>\s*<p[^>]*>5</', $html);

@@ -10,7 +10,7 @@ use Illuminate\Validation\Rule;
 
 class BookingCancellationController extends Controller
 {
-    // Pembeli membatalkan booking COD-nya sendiri: biaya booking tidak dikembalikan
+    // Pembeli membatalkan booking COD-nya sendiri: biaya booking menjadi milik platform
     public function cancelByBuyer(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless((int) $booking->user_id === (int) Auth::id(), 403);
@@ -24,7 +24,7 @@ class BookingCancellationController extends Controller
             'setuju_konsekuensi' => 'accepted',
             'alasan'             => ['nullable', Rule::in(array_keys(Booking::BUYER_CANCEL_REASONS))],
         ], [
-            'setuju_konsekuensi.accepted' => 'Centang persetujuan bahwa biaya booking tidak dikembalikan untuk membatalkan booking.',
+            'setuju_konsekuensi.accepted' => 'Centang persetujuan bahwa biaya booking tidak dapat dikembalikan dan menjadi milik platform untuk membatalkan booking.',
             'alasan.in'                   => 'Pilih alasan pembatalan dari daftar yang tersedia.',
         ]);
 
@@ -32,13 +32,13 @@ class BookingCancellationController extends Controller
             return back()->with('error', 'Booking ini sudah selesai atau sudah dibatalkan, jadi tidak bisa dibatalkan lagi.');
         }
 
-        $fee = $booking->booking_fee > 0 ? ' Biaya booking Rp' . number_format($booking->booking_fee, 0, ',', '.') . ' tidak dikembalikan.' : '';
+        $fee = $booking->booking_fee > 0 ? ' Biaya booking Rp' . number_format($booking->booking_fee, 0, ',', '.') . ' tidak dapat dikembalikan dan menjadi milik platform.' : '';
 
         return redirect()->route('bookings.index', ['tab' => 'riwayat'])
             ->with('success', 'Booking "' . $booking->product->title . '" sudah dibatalkan dan token QR-nya tidak berlaku lagi.' . $fee);
     }
 
-    // Penjual membatalkan booking untuk barangnya: biaya booking dikembalikan ke pembeli
+    // Penjual membatalkan booking untuk barangnya: biaya booking tetap menjadi milik platform
     public function cancelBySeller(Request $request, Booking $booking): RedirectResponse
     {
         abort_unless((int) $booking->product?->user_id === (int) Auth::id(), 403);
@@ -63,7 +63,7 @@ class BookingCancellationController extends Controller
             return back()->with('error', 'Booking ini sudah selesai atau sudah dibatalkan, jadi tidak bisa dibatalkan lagi.');
         }
 
-        $fee = $booking->booking_fee > 0 ? ' Biaya booking Rp' . number_format($booking->booking_fee, 0, ',', '.') . ' dikembalikan ke pembeli.' : '';
+        $fee = $booking->booking_fee > 0 ? ' Biaya booking Rp' . number_format($booking->booking_fee, 0, ',', '.') . ' yang dibayar pembeli tidak dapat dikembalikan dan menjadi milik platform.' : '';
 
         return redirect()->route('dashboard')->with('success',
             'Booking "' . $booking->product->title . '" dibatalkan.' . $fee . ($relist ? ' Barang tayang lagi di katalog.' : ' Barang diturunkan dari katalog.'));

@@ -16,7 +16,9 @@ class Booking extends Model
 
     // Status biaya booking
     public const FEE_PAID = 'paid';
+    // Biaya booking selalu menjadi milik platform setelah dibatalkan, siapa pun yang membatalkan
     public const FEE_FORFEITED = 'forfeited';
+    // Hanya untuk data lama di database; tidak ada kode yang membuat status ini lagi
     public const FEE_REFUNDED = 'refunded';
 
     public const CANCELLED_BY_BUYER = 'buyer';
@@ -112,7 +114,7 @@ class Booking extends Model
     {
         return match ($this->fee_status) {
             self::FEE_PAID      => 'Dibayar',
-            self::FEE_FORFEITED => 'Tidak dikembalikan',
+            self::FEE_FORFEITED => 'Milik platform',
             self::FEE_REFUNDED  => 'Dikembalikan ke pembeli',
             default             => null,
         };
@@ -135,7 +137,7 @@ class Booking extends Model
     }
 
     /**
-     * Pembeli membatalkan: biaya booking hangus (komitmen), barang kembali tayang.
+     * Pembeli membatalkan: biaya booking menjadi milik platform, barang tayang lagi.
      * Mengembalikan false kalau booking sudah tidak aktif (selesai/dibatalkan).
      */
     public function cancelByBuyer(?string $reason): bool
@@ -144,12 +146,12 @@ class Booking extends Model
     }
 
     /**
-     * Penjual membatalkan: biaya booking dikembalikan ke pembeli. Barang tayang lagi
-     * atau diturunkan dari katalog sesuai pilihan penjual.
+     * Penjual membatalkan: biaya booking tetap menjadi milik platform, sama seperti pembatalan
+     * pembeli. Barang tayang lagi atau diturunkan dari katalog sesuai pilihan penjual.
      */
     public function cancelBySeller(string $reason, bool $relistProduct): bool
     {
-        return $this->cancel(self::CANCELLED_BY_SELLER, $reason, self::FEE_REFUNDED, $relistProduct);
+        return $this->cancel(self::CANCELLED_BY_SELLER, $reason, self::FEE_FORFEITED, $relistProduct);
     }
 
     private function cancel(string $by, ?string $reason, string $feeStatus, bool $relistProduct): bool

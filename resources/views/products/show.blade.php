@@ -155,7 +155,7 @@
                                     Booking COD
                                 </button>
                                 <p class="mt-2 text-[11px] text-slate-500">
-                                    Biaya booking {{ $rupiah((int) config('thriftlo.booking.fee')) }} dibayar via QRIS untuk mengunci barang dan tidak dapat dikembalikan bila kamu membatalkan.
+                                    Biaya booking {{ $rupiah((int) config('thriftlo.booking.fee')) }} dibayar via QRIS untuk mengunci barang. Biaya ini tidak dapat dikembalikan dan menjadi milik platform.
                                 </p>
                             @else
                                 <a href="{{ route('login') }}" class="mt-3 w-full h-11 inline-flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Masuk untuk booking COD</a>

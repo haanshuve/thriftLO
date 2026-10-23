@@ -41,7 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
     Route::post('/seller/verify-qr', [ProductController::class, 'verifyQrCode'])->name('booking.verify');
 
-    // Pembatalan booking COD: oleh pembeli (biaya hangus) atau penjual (biaya dikembalikan)
+    // Pembatalan booking COD oleh pembeli atau penjual: biaya booking selalu menjadi milik platform
     Route::patch('/booking/{booking}/cancel', [BookingCancellationController::class, 'cancelByBuyer'])->name('booking.cancel');
     Route::patch('/seller/booking/{booking}/cancel', [BookingCancellationController::class, 'cancelBySeller'])->name('booking.sellerCancel');
 
