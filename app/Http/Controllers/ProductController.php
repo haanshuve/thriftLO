@@ -532,6 +532,10 @@ class ProductController extends Controller
             if ($booking->status_cod === 'Cancelled' || $booking->status_cod === 'Completed') {
                 return $booking->status_cod;
             }
+            // Biaya booking belum lunas (mode Midtrans): token belum berlaku
+            if (!$booking->isActive()) {
+                return 'unpaid';
+            }
 
             $booking->update(['status_cod' => 'Completed']);
             Product::whereKey($booking->product_id)->lockForUpdate()->first()?->update(['status' => 'Sold Out']);
@@ -543,6 +547,7 @@ class ProductController extends Controller
             'ok'        => redirect()->back()->with('success', 'Transaksi COD Sukses! Status barang berubah menjadi Sold Out.'),
             'Cancelled' => redirect()->back()->with('error', 'Token QR ini sudah tidak berlaku karena booking-nya dibatalkan.'),
             'Completed' => redirect()->back()->with('error', 'Token QR ini sudah pernah diverifikasi sebelumnya!'),
+            'unpaid'    => redirect()->back()->with('error', 'Biaya booking untuk token ini belum lunas, jadi token belum berlaku.'),
             default     => redirect()->back()->with('error', 'Token QR tidak ditemukan atau tidak valid!'),
         };
     }

@@ -14,7 +14,12 @@ class Booking extends Model
     // Booking yang masih berjalan (token QR masih berlaku)
     public const ACTIVE_STATUSES = ['Pending', 'Confirmed'];
 
+    // Mode Midtrans: booking sudah dibuat dan barang ditahan, biaya booking belum lunas.
+    // Bukan status aktif: belum bisa dibatalkan atau diverifikasi QR sampai webhook settlement.
+    public const AWAITING_PAYMENT = 'AwaitingPayment';
+
     // Status biaya booking
+    public const FEE_PENDING = 'pending';
     public const FEE_PAID = 'paid';
     // Biaya booking selalu menjadi milik platform setelah dibatalkan, siapa pun yang membatalkan
     public const FEE_FORFEITED = 'forfeited';
@@ -51,26 +56,38 @@ class Booking extends Model
         'fee_status',
         'paid_at',
         'idempotency_key',
+        'payment_order_id',
+        'payment_status',
+        'payment_qr_string',
+        'payment_expires_at',
+    ];
+
+    // Catatan pembatalan otomatis saat pembayaran QRIS gagal, per transaction_status Midtrans
+    public const PAYMENT_FAILURE_NOTES = [
+        'expire' => 'Pembayaran QRIS kedaluwarsa',
+        'cancel' => 'Pembayaran QRIS dibatalkan',
+        'deny'   => 'Pembayaran QRIS ditolak',
     ];
 
     /*
-     * active_product_id = product_id selama booking aktif, NULL setelah selesai/dibatalkan.
+     * active_product_id = product_id selama booking aktif atau menunggu pembayaran, NULL setelah selesai/dibatalkan.
      * Unique index di kolom ini menjamin satu booking aktif per produk di level database,
      * jadi dua booking bersamaan untuk barang yang sama tidak mungkin sama-sama tersimpan.
      */
     protected static function booted(): void
     {
         static::saving(function (Booking $booking) {
-            $booking->active_product_id = $booking->isActive() ? $booking->product_id : null;
+            $booking->active_product_id = $booking->isActive() || $booking->isAwaitingPayment() ? $booking->product_id : null;
         });
     }
 
     protected function casts(): array
     {
         return [
-            'booking_fee'  => 'integer',
-            'paid_at'      => 'datetime',
-            'cancelled_at' => 'datetime',
+            'booking_fee'        => 'integer',
+            'paid_at'            => 'datetime',
+            'cancelled_at'       => 'datetime',
+            'payment_expires_at' => 'datetime',
         ];
     }
 
@@ -94,9 +111,15 @@ class Booking extends Model
         return in_array($this->status_cod, self::ACTIVE_STATUSES, true);
     }
 
+    public function isAwaitingPayment(): bool
+    {
+        return $this->status_cod === self::AWAITING_PAYMENT;
+    }
+
     public function statusLabel(): string
     {
         return match ($this->status_cod) {
+            self::AWAITING_PAYMENT => 'Menunggu pembayaran',
             'Pending'   => 'Menunggu COD',
             'Confirmed' => 'Dikonfirmasi penjual',
             'Completed' => 'Selesai',
@@ -113,6 +136,7 @@ class Booking extends Model
     public function feeStatusLabel(): ?string
     {
         return match ($this->fee_status) {
+            self::FEE_PENDING   => 'Menunggu pembayaran',
             self::FEE_PAID      => 'Dibayar',
             self::FEE_FORFEITED => 'Milik platform',
             self::FEE_REFUNDED  => 'Dikembalikan ke pembeli',
@@ -186,6 +210,89 @@ class Booking extends Model
 
             return true;
         });
+    }
+
+    /**
+     * Webhook settlement: biaya booking lunas, booking menjadi aktif (Menunggu COD).
+     * Idempotent: hanya booking yang masih menunggu pembayaran yang berubah.
+     * Settlement yang terlambat (booking sudah dilepas karena kedaluwarsa) tetap dicatat sebagai
+     * milik platform tanpa mengaktifkan lagi booking-nya, karena barangnya mungkin sudah dipesan orang lain.
+     *
+     * @return string paid | late_forfeited | ignored
+     */
+    public function markFeePaid(): string
+    {
+        return DB::transaction(function () {
+            $locked = self::whereKey($this->id)->lockForUpdate()->first();
+            $result = 'ignored';
+
+            if ($locked?->isAwaitingPayment()) {
+                $locked->forceFill([
+                    'status_cod'     => 'Pending',
+                    'fee_status'     => self::FEE_PAID,
+                    'paid_at'        => now(),
+                    'payment_status' => 'settlement',
+                ])->save();
+                $result = 'paid';
+            } elseif ($locked && $locked->status_cod === 'Cancelled' && $locked->fee_status === null && $locked->booking_fee > 0) {
+                $locked->forceFill([
+                    'fee_status'     => self::FEE_FORFEITED,
+                    'paid_at'        => now(),
+                    'payment_status' => 'settlement',
+                ])->save();
+                $result = 'late_forfeited';
+            }
+
+            if ($locked) {
+                $this->setRawAttributes($locked->getAttributes(), true);
+            }
+
+            return $result;
+        });
+    }
+
+    /**
+     * Pembayaran gagal (expire/cancel/deny) atau lewat batas waktu: booking dibatalkan sistem dan
+     * barang tayang lagi. Uang tidak pernah masuk, jadi tidak ada biaya yang menjadi milik platform.
+     * Idempotent: mengembalikan false kalau booking sudah tidak menunggu pembayaran.
+     */
+    public function failPayment(string $paymentStatus): bool
+    {
+        return DB::transaction(function () use ($paymentStatus) {
+            $locked = self::whereKey($this->id)->lockForUpdate()->first();
+
+            if (!$locked?->isAwaitingPayment()) {
+                return false;
+            }
+
+            $locked->forceFill([
+                'status_cod'     => 'Cancelled',
+                'cancelled_by'   => self::CANCELLED_BY_SYSTEM,
+                'cancel_reason'  => self::PAYMENT_FAILURE_NOTES[$paymentStatus] ?? self::PAYMENT_FAILURE_NOTES['expire'],
+                'cancelled_at'   => now(),
+                'fee_status'     => null,
+                'payment_status' => $paymentStatus,
+            ])->save();
+
+            $product = Product::whereKey($locked->product_id)->lockForUpdate()->first();
+            if ($product?->status === 'Booked') {
+                $product->update(['status' => 'Available']);
+            }
+
+            $this->setRawAttributes($locked->getAttributes(), true);
+
+            return true;
+        });
+    }
+
+    // Cadangan kalau webhook expire tidak sampai: lepas booking yang lewat batas bayar
+    public static function releaseExpiredPayments(): int
+    {
+        return static::where('status_cod', self::AWAITING_PAYMENT)
+            ->where('payment_expires_at', '<', now())
+            ->get()
+            ->filter(fn (Booking $booking) => $booking->failPayment('expire'))
+            ->count();
     }
 
     // QR token COD sebagai SVG inline
