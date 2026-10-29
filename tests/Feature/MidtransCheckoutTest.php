@@ -59,7 +59,8 @@ class MidtransCheckoutTest extends TestCase
                 }
                 $this->charged[] = $booking->payment_order_id;
 
-                return new QrisCharge('00020101021226QRIS-PALSU-' . $booking->payment_order_id, now()->addMinutes(15));
+                return new QrisCharge('00020101021226QRIS-PALSU-' . $booking->payment_order_id, now()->addMinutes(15), 'pending',
+                    'https://api.sandbox.midtrans.com/v2/qris/test-' . $booking->id . '/qr-code');
             }
         };
         $this->app->instance(BookingFeeGateway::class, $gateway);
@@ -93,6 +94,27 @@ class MidtransCheckoutTest extends TestCase
         $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
             ->assertOk()->assertSee('Rp2.000')->assertSee('<svg', false)->assertDontSee($booking->qr_token);
         $this->actingAs($this->buyer)->getJson(route('booking.payStatus', $booking))->assertExactJson(['status' => 'awaiting']);
+    }
+
+    public function test_midtrans_qr_image_link_is_shown_only_in_sandbox(): void
+    {
+        $this->fakeGateway();
+        $this->book($this->product(), (string) Str::uuid());
+        $booking = Booking::sole();
+        $url = 'https://api.sandbox.midtrans.com/v2/qris/test-' . $booking->id . '/qr-code';
+        $this->assertSame($url, $booking->payment_qr_url);
+
+        config(['payment.driver' => 'midtrans', 'midtrans.is_production' => false]);
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertOk()->assertSee('Buka gambar QR dari Midtrans (sandbox)')->assertSee($url, false);
+
+        config(['midtrans.is_production' => true]);
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertOk()->assertDontSee('Buka gambar QR dari Midtrans')->assertDontSee($url, false);
+
+        config(['payment.driver' => 'simulation', 'midtrans.is_production' => false]);
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertOk()->assertDontSee('Buka gambar QR dari Midtrans');
     }
 
     public function test_resubmitting_the_form_does_not_charge_twice(): void

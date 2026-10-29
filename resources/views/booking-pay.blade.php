@@ -33,6 +33,10 @@
 
             @unless(config('midtrans.is_production'))
                 <p class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-[11px] text-slate-500">Mode sandbox Midtrans: bayar lewat QRIS simulator Midtrans, tidak ada uang sungguhan yang ditarik.</p>
+                {{-- Bantuan uji sandbox: gambar QR asli dari Midtrans, untuk dibuka/ditempel di simulator --}}
+                @if(config('payment.driver') === 'midtrans' && $booking->payment_qr_url)
+                    <a href="{{ $booking->payment_qr_url }}" target="_blank" rel="noopener noreferrer" class="block text-xs font-semibold text-emerald-700 hover:underline break-all">Buka gambar QR dari Midtrans (sandbox)</a>
+                @endif
             @endunless
 
             <a href="{{ route('bookings.index') }}" class="block w-full h-10 leading-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold">Ke Tiket Saya</a>

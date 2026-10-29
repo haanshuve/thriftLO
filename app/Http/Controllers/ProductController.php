@@ -511,6 +511,7 @@ class ProductController extends Controller
 
         $booking->forceFill([
             'payment_qr_string'  => $charge->qrString,
+            'payment_qr_url'     => $charge->qrImageUrl,
             'payment_expires_at' => $charge->expiresAt,
             'payment_status'     => $charge->status,
         ])->save();

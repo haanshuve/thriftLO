@@ -59,6 +59,7 @@ class Booking extends Model
         'payment_order_id',
         'payment_status',
         'payment_qr_string',
+        'payment_qr_url',
         'payment_expires_at',
     ];
 

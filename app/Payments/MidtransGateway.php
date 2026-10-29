@@ -3,6 +3,7 @@
 namespace App\Payments;
 
 use App\Models\Booking;
+use Carbon\CarbonInterface;
 use Midtrans\Config;
 use Midtrans\CoreApi;
 use Throwable;
@@ -54,11 +55,28 @@ class MidtransGateway implements BookingFeeGateway
             throw new PaymentException('Midtrans menolak tagihan QRIS: ' . str_replace($serverKey, '***', $e->getMessage()), 0, $e);
         }
 
+        return self::chargeFromResponse($response, $expiresAt);
+    }
+
+    // Respons charge QRIS → QrisCharge. Terpisah supaya bisa diuji tanpa memanggil Midtrans.
+    public static function chargeFromResponse(object $response, CarbonInterface $expiresAt): QrisCharge
+    {
         $qrString = (string) ($response->qr_string ?? '');
         if ($qrString === '') {
             throw new PaymentException('Respons Midtrans tidak berisi qr_string.');
         }
 
-        return new QrisCharge($qrString, $expiresAt, (string) ($response->transaction_status ?? 'pending'));
+        // URL gambar QR ada di actions[name=generate-qr-code]; tidak wajib, QR tetap dirender dari qr_string
+        $qrImageUrl = null;
+        foreach ((array) ($response->actions ?? []) as $action) {
+            $action = (object) $action;
+            if (($action->name ?? null) === 'generate-qr-code' && is_string($action->url ?? null)
+                && str_starts_with($action->url, 'https://') && strlen($action->url) <= 255) {
+                $qrImageUrl = $action->url;
+                break;
+            }
+        }
+
+        return new QrisCharge($qrString, $expiresAt, (string) ($response->transaction_status ?? 'pending'), $qrImageUrl);
     }
 }
