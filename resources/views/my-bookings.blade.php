@@ -5,13 +5,16 @@
         $rupiah = fn ($n) => 'Rp' . number_format($n, 0, ',', '.');
         // Popup pembatalan dibuka lagi kalau validasinya gagal (mis. kotak persetujuan belum dicentang)
         $cancelErrorBookingId = $errors->cancel->any() ? (int) old('booking_id') : null;
-        $activeBookings = $bookings->whereIn('status_cod', $activeStatuses);
-        $historyBookings = $bookings->whereNotIn('status_cod', $activeStatuses);
+        // Booking yang masih menunggu pembayaran QRIS ikut di tab aktif, tapi tanpa QR COD
+        $activeTabStatuses = [...$activeStatuses, \App\Models\Booking::AWAITING_PAYMENT];
+        $activeBookings = $bookings->whereIn('status_cod', $activeTabStatuses);
+        $historyBookings = $bookings->whereNotIn('status_cod', $activeTabStatuses);
         $tab = request('tab', $activeBookings->isNotEmpty() || $historyBookings->isEmpty() ? 'aktif' : 'riwayat');
         $tab = in_array($tab, ['aktif', 'riwayat'], true) ? $tab : 'aktif';
         $shown = $tab === 'aktif' ? $activeBookings : $historyBookings;
 
         $statusClass = [
+            \App\Models\Booking::AWAITING_PAYMENT => 'bg-orange-100 text-orange-800',
             'Pending'   => 'bg-amber-100 text-amber-800',
             'Confirmed' => 'bg-sky-100 text-sky-800',
             'Completed' => 'bg-emerald-100 text-emerald-800',
@@ -20,7 +23,7 @@
         $imgSrc = fn ($p) => filter_var($p->image_url ?? $p->image_path, FILTER_VALIDATE_URL)
             ? ($p->image_url ?? $p->image_path)
             : asset('storage/' . ($p->image_url ?? $p->image_path));
-        $firstActiveId = $activeBookings->first()?->id;
+        $firstActiveId = $activeBookings->whereIn('status_cod', $activeStatuses)->first()?->id;
     @endphp
 
     <main class="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
@@ -148,6 +151,14 @@
                                 <p>Biaya booking {{ $rupiah($b->booking_fee) }} tidak dapat dikembalikan dan menjadi milik platform.</p>
                             @endif
                             <p>Token QR booking ini sudah tidak berlaku.</p>
+                        </div>
+                    @endif
+
+                    @if($b->isAwaitingPayment())
+                        <!-- Tagihan QRIS biaya booking belum dibayar (mode Midtrans) -->
+                        <div class="mx-4 mb-4 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-900 flex items-center justify-between gap-3">
+                            <p>Selesaikan pembayaran biaya booking{{ $b->payment_expires_at ? ' sebelum ' . $b->payment_expires_at->format('H:i') : '' }}. Token QR COD muncul setelah lunas.</p>
+                            <a href="{{ route('booking.pay', $b) }}" class="shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-white font-semibold">Bayar sekarang</a>
                         </div>
                     @endif
 

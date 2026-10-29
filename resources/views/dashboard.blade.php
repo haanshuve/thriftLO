@@ -14,6 +14,7 @@
         $countPendingCod = $myBookings->whereIn('status_cod', ['Pending', 'Confirmed'])->count();
 
         $statusCodClass = [
+            \App\Models\Booking::AWAITING_PAYMENT => 'bg-orange-100 text-orange-800',
             'Pending'   => 'bg-amber-100 text-amber-800',
             'Confirmed' => 'bg-sky-100 text-sky-800',
             'Completed' => 'bg-emerald-100 text-emerald-800',
@@ -184,6 +185,8 @@
                                             Barang sudah tayang lagi di katalog.
                                         @endif
                                     </p>
+                                @elseif($booking->isAwaitingPayment())
+                                    <p class="mt-1.5 text-xs text-orange-700">Pembeli sedang membayar biaya booking lewat QRIS. Barang ditahan sementara; kalau tidak dibayar, barang tayang lagi otomatis.</p>
                                 @elseif($booking->isActive())
                                     {{-- Token sengaja disamarkan: penjual harus meminta token dari HP pembeli saat COD --}}
                                     <div class="mt-1 flex items-center justify-between gap-2">

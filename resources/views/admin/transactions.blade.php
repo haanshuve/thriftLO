@@ -4,12 +4,15 @@
         $rupiah = fn ($n) => 'Rp' . number_format((int) $n, 0, ',', '.');
         $shop = fn ($product) => $product?->user ? ($product->user->nama_toko ?: $product->user->name) : '-';
         $codBadge = [
+            \App\Models\Booking::AWAITING_PAYMENT => 'bg-orange-100 text-orange-800',
             'Pending'   => 'bg-amber-100 text-amber-800',
             'Confirmed' => 'bg-sky-100 text-sky-800',
             'Completed' => 'bg-emerald-100 text-emerald-800',
             'Cancelled' => 'bg-rose-100 text-rose-800',
         ];
         $feeBadge = [
+            // Belum lunas: tidak dihitung sebagai pendapatan platform
+            \App\Models\Booking::FEE_PENDING   => 'bg-orange-50 text-orange-700 border-orange-200',
             \App\Models\Booking::FEE_PAID      => 'bg-emerald-50 text-emerald-700 border-emerald-200',
             \App\Models\Booking::FEE_FORFEITED => 'bg-slate-100 text-slate-700 border-slate-200',
             // Data lama sebelum biaya booking selalu menjadi milik platform

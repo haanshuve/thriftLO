@@ -72,9 +72,9 @@ return [
     | + foto produk (5MB), kalau tidak file ditolak server sebelum sampai validasi.
     */
     /*
-    | Booking COD. fee: biaya booking yang dibayar pembeli lewat QRIS (masih simulasi)
-    | sebagai komitmen. Tidak dikembalikan kalau pembeli membatalkan; dikembalikan kalau
-    | penjual yang membatalkan.
+    | Booking COD. fee: biaya booking yang dibayar pembeli lewat QRIS sebagai komitmen
+    | (simulasi atau Midtrans, lihat config/payment.php). Setelah lunas selalu menjadi milik
+    | platform dan tidak pernah dikembalikan, siapa pun yang membatalkan.
     */
     'booking' => [
         'fee' => 2000,

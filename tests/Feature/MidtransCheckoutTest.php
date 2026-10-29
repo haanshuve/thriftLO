@@ -171,6 +171,23 @@ class MidtransCheckoutTest extends TestCase
             ->assertOk()->assertDontSee('Saya sudah bayar')->assertDontSee('name="qris_paid"', false);
     }
 
+    public function test_awaiting_booking_is_shown_with_pay_link_but_without_cod_token(): void
+    {
+        $this->fakeGateway();
+        $this->book($this->product(), (string) Str::uuid());
+        $booking = Booking::sole();
+
+        $this->actingAs($this->buyer)->get(route('bookings.index'))
+            ->assertOk()->assertSee('Menunggu pembayaran')->assertSee(route('booking.pay', $booking))
+            ->assertDontSee($booking->qr_token)->assertDontSee('Tampilkan QR untuk COD');
+
+        $this->actingAs($this->seller)->get(route('dashboard'))
+            ->assertOk()->assertSee('Pembeli sedang membayar biaya booking lewat QRIS.')->assertDontSee('Batalkan (penjual)');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->get(route('admin.transactions'))->assertOk()->assertSee('Menunggu pembayaran');
+    }
+
     public function test_simulation_driver_is_the_default_and_unchanged(): void
     {
         $this->assertSame('simulation', config('payment.driver'));
