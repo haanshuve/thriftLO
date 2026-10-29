@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\BookingCancellationController;
+use App\Http\Controllers\BookingPaymentController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OrderController;
@@ -41,6 +42,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/product/{id}/book', [ProductController::class, 'bookProduct'])->name('product.book');
     Route::post('/seller/verify-qr', [ProductController::class, 'verifyQrCode'])->name('booking.verify');
 
+    // Bayar biaya booking lewat QRIS Midtrans (PAYMENT_DRIVER=midtrans)
+    Route::get('/booking/{booking}/bayar', [BookingPaymentController::class, 'show'])->name('booking.pay');
+    Route::get('/booking/{booking}/bayar/status', [BookingPaymentController::class, 'status'])->name('booking.payStatus');
+
     // Pembatalan booking COD oleh pembeli atau penjual: biaya booking selalu menjadi milik platform
     Route::patch('/booking/{booking}/cancel', [BookingCancellationController::class, 'cancelByBuyer'])->name('booking.cancel');
     Route::patch('/seller/booking/{booking}/cancel', [BookingCancellationController::class, 'cancelBySeller'])->name('booking.sellerCancel');
@@ -48,7 +53,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Tiket Saya & Review Booking
     Route::get('/my-bookings', function() {
         \App\Models\Order::releaseOverdue();
-        $bookings = \App\Models\Booking::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
+        \App\Models\Booking::releaseExpiredPayments();
+        $bookings =\App\Models\Booking::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
         $orders = \App\Models\Order::with('product.user')->where('user_id', Auth::id())->latest()->get();
         return view('my-bookings', compact('bookings', 'orders'));
     })->name('bookings.index');

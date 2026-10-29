@@ -1,13 +1,15 @@
 {{--
     Modal booking COD, tiga tahap: jadwal → ringkasan → bayar biaya booking via QRIS.
     Buka dengan tombol ber-atribut data-url, data-name, data-price dan onclick="openBookingModal(this)".
-    Booking baru dibuat setelah pembeli menekan "Saya sudah bayar", jadi batal sebelum itu tidak dikenai apa pun.
+    Simulasi: booking baru dibuat setelah pembeli menekan "Saya sudah bayar", jadi batal sebelum itu tidak dikenai apa pun.
+    Midtrans: tombol bayar di ringkasan langsung membuat tagihan QRIS dan membuka halaman bayar (booking.pay).
 --}}
 @php
     $bookingFee = (int) config('thriftlo.booking.fee');
     $rupiahFee = 'Rp' . number_format($bookingFee, 0, ',', '.');
-    // Pembayaran masih SIMULASI: QR ini contoh, bukan kode QRIS merchant sungguhan
-    $qrisSvg = \App\Support\QrCode::svg('THRIFTLO-QRIS-SIMULASI;BIAYA-BOOKING=' . $bookingFee, 180);
+    $simulatedPayment = app(\App\Payments\BookingFeeGateway::class)->isSimulation();
+    // Mode simulasi: QR ini contoh, bukan kode QRIS merchant sungguhan
+    $qrisSvg = $simulatedPayment ? \App\Support\QrCode::svg('THRIFTLO-QRIS-SIMULASI;BIAYA-BOOKING=' . $bookingFee, 180) : null;
     $input = 'w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500';
 @endphp
 
@@ -30,7 +32,9 @@
 
         <form id="bookingForm" method="POST" action="">
             @csrf
-            <input type="hidden" name="qris_paid" value="1">
+            @if($simulatedPayment)
+                <input type="hidden" name="qris_paid" value="1">
+            @endif
             <x-form-token />
 
             <!-- Tahap 1: jadwal -->
@@ -71,10 +75,15 @@
 
                 <div class="flex gap-2">
                     <button type="button" onclick="goToBookingStep(1)" class="flex-1 h-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold">Kembali</button>
-                    <button type="button" onclick="goToBookingStep(3)" class="flex-[2] h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Bayar {{ $rupiahFee }} via QRIS</button>
+                    @if($simulatedPayment)
+                        <button type="button" onclick="goToBookingStep(3)" class="flex-[2] h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Bayar {{ $rupiahFee }} via QRIS</button>
+                    @else
+                        <button type="submit" id="bookingSubmit" class="flex-[2] h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-70 disabled:cursor-wait">Bayar {{ $rupiahFee }} via QRIS</button>
+                    @endif
                 </div>
             </div>
 
+            @if($simulatedPayment)
             <!-- Tahap 3: bayar QRIS (simulasi) -->
             <div data-step="3" class="hidden space-y-3 text-center">
                 <p class="text-sm text-slate-600">Pindai QRIS ini dengan e-wallet atau mobile banking.</p>
@@ -93,6 +102,7 @@
                 </button>
                 <p class="text-xs text-slate-500">Membatalkan sebelum membayar tidak dikenai biaya apa pun.</p>
             </div>
+            @endif
         </form>
     </div>
 </div>
@@ -156,7 +166,7 @@
     document.getElementById('bookingForm').addEventListener('submit', function () {
         const button = document.getElementById('bookingSubmit');
         button.disabled = true;
-        button.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> Memproses pembayaran...';
+        button.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg> ' + @json($simulatedPayment ? 'Memproses pembayaran...' : 'Membuat QRIS...');
     });
 
     document.getElementById('bookingModal').addEventListener('click', function (e) {

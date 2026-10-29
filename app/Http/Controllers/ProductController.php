@@ -8,11 +8,14 @@ use App\Models\Product;
 use App\Models\Booking;
 use App\Models\Order;
 use App\Models\User;
+use App\Payments\BookingFeeGateway;
+use App\Payments\PaymentException;
 use App\Support\FormToken;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -227,6 +230,9 @@ class ProductController extends Controller
     // Halaman detail produk: COD untuk penjual Batam, pilih pengiriman untuk penjual luar Batam
     public function show(Product $product)
     {
+        if ($product->status === 'Booked' && Booking::releaseExpiredPayments() > 0) {
+            $product->refresh();
+        }
         $product->load(['user', 'brand']);
         $isOwner = (int) Auth::id() === (int) $product->user_id;
 
@@ -404,6 +410,8 @@ class ProductController extends Controller
         ]);
         $formKey = FormToken::validate($request);
 
+        // Barang yang tertahan tagihan QRIS kedaluwarsa dilepas dulu supaya bisa di-booking lagi
+        Booking::releaseExpiredPayments();
         $product = Product::findOrFail($id);
 
         // Kiriman ulang formulir yang sama (klik ganda, refresh, retry): tampilkan booking yang sudah ada
@@ -425,9 +433,13 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Barang ini sedang tidak ditayangkan penjualnya.');
         }
 
-        // Biaya booking dibayar lewat QRIS (SIMULASI: tombol "Saya sudah bayar" di popup, tanpa payment gateway).
-        // Sebelum membayar belum ada booking yang dibuat, jadi batal di tahap ringkasan/QRIS tidak dikenai apa pun.
-        if (!$request->boolean('qris_paid')) {
+        $gateway = app(BookingFeeGateway::class);
+        $viaGateway = !$gateway->isSimulation();
+
+        // Mode simulasi: tombol "Saya sudah bayar" di popup, tanpa payment gateway. Sebelum membayar
+        // belum ada booking yang dibuat, jadi batal di tahap ringkasan/QRIS tidak dikenai apa pun.
+        // Mode Midtrans: booking dibuat menunggu pembayaran, lunas setelah webhook settlement.
+        if (!$viaGateway && !$request->boolean('qris_paid')) {
             return redirect()->back()->with('error', 'Selesaikan pembayaran biaya booking lewat QRIS dulu untuk mengunci barangnya.');
         }
 
@@ -436,7 +448,7 @@ class ProductController extends Controller
         try {
             // Kunci baris produk: booking dan checkout Kirim untuk barang yang sama saling menunggu,
             // lalu status dicek ulang di dalam kunci supaya barang tidak terjual dua kali.
-            $booking = DB::transaction(function () use ($request, $product, $fee, $formKey) {
+            $booking = DB::transaction(function () use ($request, $product, $fee, $formKey, $viaGateway) {
                 $locked = Product::visibleInCatalog()->whereKey($product->id)->lockForUpdate()->first();
 
                 if (!$locked || $locked->status !== 'Available') {
@@ -450,10 +462,11 @@ class ProductController extends Controller
                     'idempotency_key' => $formKey,
                     'cod_location'    => $request->lokasi_cod,
                     'cod_schedule'    => $request->waktu_cod,
-                    'status_cod'      => 'Pending',
-                    'booking_fee'     => $fee,
-                    'fee_status'      => Booking::FEE_PAID,
-                    'paid_at'         => now(),
+                    'status_cod'       => $viaGateway ? Booking::AWAITING_PAYMENT : 'Pending',
+                    'booking_fee'      => $fee,
+                    'fee_status'       => $viaGateway ? Booking::FEE_PENDING : Booking::FEE_PAID,
+                    'paid_at'          => $viaGateway ? null : now(),
+                    'payment_order_id' => $viaGateway ? 'TL-BKG-' . Str::ulid() : null,
                 ]);
 
                 $locked->update(['status' => 'Booked']);
@@ -472,7 +485,37 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Barang sudah tidak tersedia. Barusan ada yang lebih dulu mem-booking atau membelinya. Cek barang lain yang mirip, yuk!');
         }
 
+        if ($viaGateway) {
+            return $this->startQrisPayment($gateway, $booking);
+        }
+
         return redirect()->route('bookings.index')->with('success', 'Pembayaran biaya booking Rp' . number_format($fee, 0, ',', '.') . ' berhasil. Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $booking->qr_token . ' di bawah ini.');
+    }
+
+    // Tagihan QRIS dibuat di luar transaksi supaya panggilan ke gateway tidak menahan kunci baris
+    private function startQrisPayment(BookingFeeGateway $gateway, Booking $booking)
+    {
+        try {
+            $charge = $gateway->createQrisCharge($booking);
+        } catch (PaymentException $e) {
+            Log::error('Tagihan QRIS biaya booking gagal dibuat', [
+                'booking_id' => $booking->id,
+                'order_id'   => $booking->payment_order_id,
+                'error'      => $e->getMessage(),
+            ]);
+            $booking->failPayment('error');
+
+            return redirect()->route('product.show', $booking->product_id)
+                ->with('error', 'Pembayaran QRIS sedang tidak bisa dibuat. Barangnya belum dikunci dan kamu tidak dikenai biaya. Coba lagi sebentar lagi, ya.');
+        }
+
+        $booking->forceFill([
+            'payment_qr_string'  => $charge->qrString,
+            'payment_expires_at' => $charge->expiresAt,
+            'payment_status'     => $charge->status,
+        ])->save();
+
+        return redirect()->route('booking.pay', $booking);
     }
 
     // Formulir booking yang sama dikirim lagi: jangan buat booking/bayar kedua, tunjukkan yang sudah ada
@@ -482,12 +525,21 @@ class ProductController extends Controller
             return redirect()->route('product.show', $product)->with('error', FormToken::REUSED_MESSAGE);
         }
 
+        // Tagihan QRIS-nya masih berjalan atau sudah gagal: jangan tagih ulang
+        if ($existing->isAwaitingPayment()) {
+            return redirect()->route('booking.pay', $existing);
+        }
+        if ($existing->payment_order_id && $existing->fee_status === null) {
+            return redirect()->route('product.show', $product)->with('error', 'Pembayaran booking sebelumnya tidak selesai, jadi barangnya tidak dikunci. Silakan booking ulang.');
+        }
+
         return redirect()->route('bookings.index')->with('success', 'Booking ini sudah dibuat dan biaya bookingnya sudah tercatat, jadi tidak ditagih lagi. Tunjukkan token ' . $existing->qr_token . ' saat ketemuan.');
     }
 
     public function sellerDashboard()
     {
         $user = Auth::user();
+        Booking::releaseExpiredPayments();
         $myProducts = Product::where('user_id', $user->id)->latest()->get();
         $myBookings = Booking::with(['product', 'user'])
             ->whereHas('product', function($q) use ($user) {

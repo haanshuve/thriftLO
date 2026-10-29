@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Booking;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -67,3 +68,14 @@ Artisan::command('thriftlo:release-escrow', function () {
 // Tiap pesanan tetap dicairkan sekali (Order::release mengunci baris); withoutOverlapping hanya
 // mencegah dua run scheduler menumpuk kalau run sebelumnya belum selesai.
 Schedule::command('thriftlo:release-escrow')->hourly()->withoutOverlapping();
+
+// Booking COD yang tagihan QRIS-nya lewat batas bayar (webhook expire tidak sampai): lepas barangnya.
+// Halaman barang, Tiket Saya, dan halaman bayar juga memanggil ini sebagai cadangan.
+Artisan::command('thriftlo:release-expired-payments', function () {
+    $released = Booking::releaseExpiredPayments();
+    $this->info("{$released} booking yang tagihan QRIS-nya kedaluwarsa dilepas.");
+
+    return 0;
+})->purpose('Lepas booking COD yang tagihan QRIS biaya bookingnya sudah kedaluwarsa');
+
+Schedule::command('thriftlo:release-expired-payments')->everyMinute()->withoutOverlapping();

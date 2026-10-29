@@ -67,6 +67,7 @@ class Booking extends Model
         'expire' => 'Pembayaran QRIS kedaluwarsa',
         'cancel' => 'Pembayaran QRIS dibatalkan',
         'deny'   => 'Pembayaran QRIS ditolak',
+        'error'  => 'Tagihan QRIS gagal dibuat',
     ];
 
     /*
