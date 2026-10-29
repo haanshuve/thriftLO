@@ -6,6 +6,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\BookingCancellationController;
 use App\Http\Controllers\BookingPaymentController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\MidtransNotificationController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReviewController;
@@ -20,6 +21,11 @@ Route::get('/', [ProductController::class, 'index'])->name('home');
 Route::get('/product/{product}', [ProductController::class, 'show'])->name('product.show');
 Route::get('/merek', [BrandController::class, 'index'])->name('brands.index');
 Route::get('/merek/{brand}', [BrandController::class, 'show'])->name('brands.show');
+
+// Webhook notifikasi Midtrans (biaya booking COD). Publik dan tanpa CSRF, diverifikasi lewat signature_key.
+Route::post('/payments/midtrans/notification', MidtransNotificationController::class)
+    ->middleware('throttle:120,1')
+    ->name('payments.midtrans.notification');
 
 // Middleware Autentikasi Umum (Buyer & Seller)
 Route::middleware(['auth', 'verified'])->group(function () {

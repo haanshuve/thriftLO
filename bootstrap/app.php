@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Percayai header X-Forwarded-* supaya URL asset/route/form tetap https://.
         $middleware->trustProxies(at: '*');
 
+        // Webhook Midtrans dikirim server Midtrans tanpa token CSRF; keasliannya dicek lewat signature_key
+        $middleware->validateCsrfTokens(except: [
+            'payments/midtrans/notification',
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\LogoutDeactivatedUser::class,
         ]);
