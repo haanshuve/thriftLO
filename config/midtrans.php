@@ -24,4 +24,7 @@ return [
     'connect_timeout' => 5,
     'timeout'         => 20,
 
+    // Simulator pembayaran QRIS Midtrans, hanya ditawarkan di halaman bayar saat sandbox
+    'sandbox_simulator_url' => 'https://simulator.sandbox.midtrans.com/v2/qris/index',
+
 ];

@@ -96,25 +96,51 @@ class MidtransCheckoutTest extends TestCase
         $this->actingAs($this->buyer)->getJson(route('booking.payStatus', $booking))->assertExactJson(['status' => 'awaiting']);
     }
 
-    public function test_midtrans_qr_image_link_is_shown_only_in_sandbox(): void
+    public function test_sandbox_payment_panel_is_shown_only_in_sandbox(): void
     {
         $this->fakeGateway();
         $this->book($this->product(), (string) Str::uuid());
         $booking = Booking::sole();
         $url = 'https://api.sandbox.midtrans.com/v2/qris/test-' . $booking->id . '/qr-code';
+        $simulator = 'https://simulator.sandbox.midtrans.com/v2/qris/index';
         $this->assertSame($url, $booking->payment_qr_url);
 
         config(['payment.driver' => 'midtrans', 'midtrans.is_production' => false]);
         $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
-            ->assertOk()->assertSee('Buka gambar QR dari Midtrans (sandbox)')->assertSee($url, false);
+            ->assertOk()
+            ->assertSee('Cara bayar di sandbox')
+            ->assertSee('Salin alamat QR')
+            ->assertSee('data-copy="' . $url . '"', false)
+            ->assertSee('href="' . $simulator . '" target="_blank" rel="noopener noreferrer"', false)
+            ->assertSee('Buka simulator Midtrans')
+            // Tautan lama sudah menjadi bagian panel; tidak ada jalan pintas untuk menandai lunas
+            ->assertDontSee('Buka gambar QR dari Midtrans (sandbox)')
+            ->assertDontSee('Saya sudah bayar');
 
         config(['midtrans.is_production' => true]);
         $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
-            ->assertOk()->assertDontSee('Buka gambar QR dari Midtrans')->assertDontSee($url, false);
+            ->assertOk()->assertDontSee('Cara bayar di sandbox')->assertDontSee($url, false)->assertDontSee($simulator, false);
 
         config(['payment.driver' => 'simulation', 'midtrans.is_production' => false]);
         $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
-            ->assertOk()->assertDontSee('Buka gambar QR dari Midtrans');
+            ->assertOk()->assertDontSee('Cara bayar di sandbox')->assertDontSee($url, false)->assertDontSee($simulator, false);
+    }
+
+    public function test_sandbox_payment_page_works_without_qr_url(): void
+    {
+        $this->fakeGateway();
+        $this->book($this->product(), (string) Str::uuid());
+        $booking = Booking::sole();
+        $booking->forceFill(['payment_qr_url' => null])->save();
+
+        config(['payment.driver' => 'midtrans', 'midtrans.is_production' => false]);
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertOk()
+            ->assertSee('Rp2.000')
+            ->assertSee('<svg', false)
+            ->assertSee('Mode sandbox Midtrans')
+            ->assertDontSee('Cara bayar di sandbox')
+            ->assertDontSee('simulator.sandbox.midtrans.com', false);
     }
 
     public function test_resubmitting_the_form_does_not_charge_twice(): void
