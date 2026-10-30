@@ -17,7 +17,12 @@
 
             <p class="text-sm text-slate-600">Pindai QRIS ini dengan e-wallet atau mobile banking.</p>
             <div class="mx-auto w-56 h-56 p-2 bg-white border border-slate-200 rounded-xl [&>svg]:w-full [&>svg]:h-full" role="img" aria-label="Kode QRIS biaya booking">
-                {!! \App\Support\QrCode::svg($booking->payment_qr_string, 220) !!}
+                @if($booking->payment_qr_string)
+                    {!! \App\Support\QrCode::svg($booking->payment_qr_string, 220) !!}
+                @else
+                    {{-- Tagihan masih dibuat; kalau gagal, booking dilepas otomatis dan halaman dialihkan --}}
+                    <p class="h-full flex items-center justify-center text-sm text-slate-500">Menyiapkan QRIS...</p>
+                @endif
             </div>
             <p class="text-2xl font-black text-slate-900 tabular-nums">{{ $rupiahFee }}</p>
             <p class="text-xs text-slate-500">Biaya booking COD · thriftLO</p>

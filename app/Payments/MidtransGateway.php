@@ -23,9 +23,7 @@ class MidtransGateway implements BookingFeeGateway
             throw new PaymentException('MIDTRANS_SERVER_KEY belum diisi, padahal PAYMENT_DRIVER=midtrans.');
         }
 
-        Config::$serverKey = $serverKey;
-        Config::$isProduction = (bool) config('midtrans.is_production');
-        Config::$isSanitized = true;
+        self::configureSdk($serverKey);
 
         $minutes = max(1, (int) config('midtrans.expiry_minutes'));
         $expiresAt = now()->addMinutes($minutes);
@@ -56,6 +54,23 @@ class MidtransGateway implements BookingFeeGateway
         }
 
         return self::chargeFromResponse($response, $expiresAt);
+    }
+
+    /*
+     * Tanpa timeout, SDK menunggu Midtrans tanpa batas sampai PHP menghentikan request, dan booking
+     * tertinggal tanpa QR. Dengan timeout, kegagalan menjadi exception dan booking langsung dilepas.
+     * CURLOPT_HTTPHEADER wajib ada: SDK membaca indeks itu begitu curlOptions tidak kosong.
+     */
+    public static function configureSdk(string $serverKey): void
+    {
+        Config::$serverKey = $serverKey;
+        Config::$isProduction = (bool) config('midtrans.is_production');
+        Config::$isSanitized = true;
+        Config::$curlOptions = [
+            CURLOPT_CONNECTTIMEOUT => (int) config('midtrans.connect_timeout'),
+            CURLOPT_TIMEOUT        => (int) config('midtrans.timeout'),
+            CURLOPT_HTTPHEADER     => [],
+        ];
     }
 
     // Respons charge QRIS → QrisCharge. Terpisah supaya bisa diuji tanpa memanggil Midtrans.

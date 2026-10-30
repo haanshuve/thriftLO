@@ -18,6 +18,10 @@ class Booking extends Model
     // Bukan status aktif: belum bisa dibatalkan atau diverifikasi QR sampai webhook settlement.
     public const AWAITING_PAYMENT = 'AwaitingPayment';
 
+    // Booking menunggu pembayaran yang belum punya QR selama ini dianggap gagal dibuat (proses terhenti
+    // saat memanggil Midtrans). Harus lebih lama dari connect_timeout + timeout di config/midtrans.php.
+    public const QR_CREATION_GRACE_SECONDS = 60;
+
     // Status biaya booking
     public const FEE_PENDING = 'pending';
     public const FEE_PAID = 'paid';
@@ -287,14 +291,25 @@ class Booking extends Model
         });
     }
 
-    // Cadangan kalau webhook expire tidak sampai: lepas booking yang lewat batas bayar
+    // Cadangan kalau webhook expire tidak sampai: lepas booking yang lewat batas bayar,
+    // juga booking yang tagihannya tidak pernah selesai dibuat (tanpa QR dan tanpa batas bayar)
     public static function releaseExpiredPayments(): int
     {
-        return static::where('status_cod', self::AWAITING_PAYMENT)
+        $expired = static::where('status_cod', self::AWAITING_PAYMENT)
             ->where('payment_expires_at', '<', now())
             ->get()
             ->filter(fn (Booking $booking) => $booking->failPayment('expire'))
             ->count();
+
+        // Pembeli tidak pernah melihat QR-nya, jadi tidak mungkin sudah membayar
+        $neverCharged = static::where('status_cod', self::AWAITING_PAYMENT)
+            ->whereNull('payment_qr_string')
+            ->where('created_at', '<', now()->subSeconds(self::QR_CREATION_GRACE_SECONDS))
+            ->get()
+            ->filter(fn (Booking $booking) => $booking->failPayment('error'))
+            ->count();
+
+        return $expired + $neverCharged;
     }
 
     // QR token COD sebagai SVG inline

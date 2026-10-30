@@ -193,6 +193,33 @@ class MidtransNotificationTest extends TestCase
         $this->assertSame(Booking::AWAITING_PAYMENT, $booking->fresh()->status_cod);
     }
 
+    // transaction_status tidak ditandatangani: payload pending (201) atau deny (202) yang sah diubah jadi settlement
+    public function test_settlement_with_status_code_other_than_200_is_rejected(): void
+    {
+        $booking = $this->awaitingBooking();
+
+        foreach (['201', '202', '407'] as $code) {
+            $this->notify('settlement', ['status_code' => $code])
+                ->assertStatus(422)->assertExactJson(['message' => 'status mismatch']);
+        }
+        $this->notify('capture', ['status_code' => '201', 'fraud_status' => 'accept'])->assertStatus(422);
+
+        $booking->refresh();
+        $this->assertSame(Booking::AWAITING_PAYMENT, $booking->status_cod);
+        $this->assertSame(Booking::FEE_PENDING, $booking->fee_status);
+        $this->assertNull($booking->paid_at);
+    }
+
+    public function test_capture_without_explicit_fraud_accept_does_not_mark_paid(): void
+    {
+        $booking = $this->awaitingBooking();
+
+        $this->notify('capture', ['status_code' => '200'])->assertOk()->assertExactJson(['status' => 'ignored']);
+        $this->assertSame(Booking::AWAITING_PAYMENT, $booking->fresh()->status_cod);
+
+        $this->notify('capture', ['status_code' => '200', 'fraud_status' => 'accept'])->assertOk()->assertExactJson(['status' => 'paid']);
+    }
+
     public function test_unknown_order_is_acknowledged_and_ignored(): void
     {
         $this->notify('settlement', ['order_id' => 'payment_notif_test_G123'])->assertOk()->assertExactJson(['status' => 'ignored']);

@@ -45,9 +45,20 @@ class MidtransNotificationController extends Controller
         }
 
         $status = (string) ($payload['transaction_status'] ?? '');
+
+        // transaction_status tidak ikut ditandatangani, status_code ikut. Pembayaran sukses dari Midtrans
+        // selalu status_code 200, jadi payload pending (201) yang diubah jadi settlement ditolak di sini.
+        if (in_array($status, ['settlement', 'capture'], true) && $payload['status_code'] !== '200') {
+            Log::warning('Notifikasi Midtrans ditolak: status_code tidak sesuai transaction_status', [
+                'order_id' => $orderId, 'transaction_status' => $status, 'status_code' => $payload['status_code'],
+            ]);
+
+            return response()->json(['message' => 'status mismatch'], 422);
+        }
+
         $result = match (true) {
             $status === 'settlement',
-            $status === 'capture' && ($payload['fraud_status'] ?? 'accept') === 'accept' => $booking->markFeePaid(),
+            $status === 'capture' && ($payload['fraud_status'] ?? null) === 'accept' => $booking->markFeePaid(),
             in_array($status, ['expire', 'cancel', 'deny'], true)                       => $booking->failPayment($status) ? 'released' : 'ignored',
             $status === 'failure'                                                        => $booking->failPayment('deny') ? 'released' : 'ignored',
             // pending: QR baru dibuat, belum ada yang berubah. refund: biaya booking tidak pernah dikembalikan.

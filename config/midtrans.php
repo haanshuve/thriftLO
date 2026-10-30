@@ -17,4 +17,11 @@ return [
     'qris_acquirer'  => env('MIDTRANS_QRIS_ACQUIRER', 'gopay'),
     'expiry_minutes' => (int) env('MIDTRANS_EXPIRY_MINUTES', 15),
 
+    /*
+    | Batas tunggu panggilan ke Midtrans, dalam detik. Totalnya harus jauh di bawah
+    | max_execution_time PHP dan di bawah Booking::QR_CREATION_GRACE_SECONDS.
+    */
+    'connect_timeout' => 5,
+    'timeout'         => 20,
+
 ];

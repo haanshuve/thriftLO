@@ -97,6 +97,40 @@ class MidtransBookingPaymentTest extends TestCase
         $this->assertSame('Pembayaran QRIS kedaluwarsa', $booking->fresh()->cancel_reason);
     }
 
+    // Proses berhenti saat memanggil Midtrans: booking tersimpan tanpa QR dan tanpa batas bayar
+    public function test_booking_without_qr_or_expiry_is_released_after_grace_period(): void
+    {
+        $booking = $this->awaitingBooking(['payment_qr_string' => null, 'payment_expires_at' => null]);
+
+        $this->assertSame(0, Booking::releaseExpiredPayments(), 'Tagihan yang mungkin masih dibuat tidak boleh dilepas');
+        $this->assertSame(Booking::AWAITING_PAYMENT, $booking->fresh()->status_cod);
+
+        $this->travel(Booking::QR_CREATION_GRACE_SECONDS + 1)->seconds();
+
+        $this->assertSame(1, Booking::releaseExpiredPayments());
+        $this->assertSame(0, Booking::releaseExpiredPayments());
+        $booking->refresh();
+        $this->assertSame('Cancelled', $booking->status_cod);
+        $this->assertSame('Tagihan QRIS gagal dibuat', $booking->cancel_reason);
+        $this->assertNull($booking->fee_status);
+        $this->assertNull($booking->active_product_id);
+        $this->assertSame('Available', $booking->product->status);
+    }
+
+    public function test_payment_page_without_qr_does_not_crash_and_releases_after_grace_period(): void
+    {
+        $booking = $this->awaitingBooking(['payment_qr_string' => null, 'payment_expires_at' => null]);
+
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertOk()->assertSee('Menyiapkan QRIS...');
+
+        $this->travel(Booking::QR_CREATION_GRACE_SECONDS + 1)->seconds();
+
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertRedirect(route('product.show', $booking->product_id));
+        $this->assertSame('Available', $booking->product->fresh()->status);
+    }
+
     public function test_late_settlement_after_release_is_platform_owned_without_reactivating(): void
     {
         $booking = $this->awaitingBooking();
