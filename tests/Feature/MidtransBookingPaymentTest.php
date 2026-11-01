@@ -90,11 +90,22 @@ class MidtransBookingPaymentTest extends TestCase
 
     public function test_expired_payments_are_released_lazily(): void
     {
-        $booking = $this->awaitingBooking(['payment_expires_at' => now()->subMinute()]);
+        $booking = $this->awaitingBooking(['payment_expires_at' => now()->subSeconds(Booking::PAYMENT_EXPIRY_GRACE_SECONDS + 1)]);
 
         $this->assertSame(1, Booking::releaseExpiredPayments());
         $this->assertSame(0, Booking::releaseExpiredPayments());
         $this->assertSame('Pembayaran QRIS kedaluwarsa', $booking->fresh()->cancel_reason);
+    }
+
+    // QR di Midtrans mulai berlaku sedikit lebih lambat dari payment_expires_at: bayar di detik terakhir tetap lunas
+    public function test_payment_within_expiry_grace_is_not_released_and_settles_as_paid(): void
+    {
+        $booking = $this->awaitingBooking(['payment_expires_at' => now()->subMinute()]);
+
+        $this->assertSame(0, Booking::releaseExpiredPayments());
+        $this->assertSame('paid', $booking->fresh()->markFeePaid());
+        $this->assertSame('Pending', $booking->fresh()->status_cod);
+        $this->assertSame('Booked', $booking->product->fresh()->status);
     }
 
     // Proses berhenti saat memanggil Midtrans: booking tersimpan tanpa QR dan tanpa batas bayar

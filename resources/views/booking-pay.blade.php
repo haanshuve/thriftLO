@@ -71,10 +71,16 @@
             const countdown = document.getElementById('payCountdown');
             const expires = new Date(countdown.dataset.expires).getTime();
             const statusUrl = @json(route('booking.payStatus', $booking));
+            const payStatus = document.getElementById('payStatus');
+            let settled = false;
 
             function tick() {
                 const left = Math.max(0, Math.floor((expires - Date.now()) / 1000));
                 countdown.textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+                // Booking baru dilepas setelah tenggang di server; pembayaran di detik terakhir masih bisa masuk
+                if (left === 0 && !settled) {
+                    payStatus.textContent = 'Waktu bayar habis. Menunggu konfirmasi dari Midtrans...';
+                }
             }
             tick();
             setInterval(tick, 1000);
@@ -84,7 +90,8 @@
                     const res = await fetch(statusUrl, { headers: { Accept: 'application/json' } });
                     const data = await res.json();
                     if (data.status !== 'awaiting') {
-                        document.getElementById('payStatus').textContent = data.status === 'paid' ? 'Pembayaran diterima, mengalihkan...' : 'Pembayaran tidak selesai, mengalihkan...';
+                        settled = true;
+                        payStatus.textContent = data.status === 'paid' ? 'Pembayaran diterima, mengalihkan...' : 'Pembayaran tidak selesai, mengalihkan...';
                         window.location.reload();
                         return;
                     }

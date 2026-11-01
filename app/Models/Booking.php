@@ -22,6 +22,11 @@ class Booking extends Model
     // saat memanggil Midtrans). Harus lebih lama dari connect_timeout + timeout di config/midtrans.php.
     public const QR_CREATION_GRACE_SECONDS = 60;
 
+    // payment_expires_at dihitung sebelum charge dikirim, sedangkan masa berlaku QR di Midtrans dimulai saat
+    // transaksinya diterima. Tenggang ini menutup selisih itu (timeout panggilan + beda jam) supaya booking
+    // tidak dilepas selagi QR-nya masih bisa dibayar. Notifikasi expire dari Midtrans tetap langsung melepas.
+    public const PAYMENT_EXPIRY_GRACE_SECONDS = 120;
+
     // Status biaya booking
     public const FEE_PENDING = 'pending';
     public const FEE_PAID = 'paid';
@@ -291,12 +296,12 @@ class Booking extends Model
         });
     }
 
-    // Cadangan kalau webhook expire tidak sampai: lepas booking yang lewat batas bayar,
+    // Cadangan kalau webhook expire tidak sampai: lepas booking yang lewat batas bayar (plus tenggang),
     // juga booking yang tagihannya tidak pernah selesai dibuat (tanpa QR dan tanpa batas bayar)
     public static function releaseExpiredPayments(): int
     {
         $expired = static::where('status_cod', self::AWAITING_PAYMENT)
-            ->where('payment_expires_at', '<', now())
+            ->where('payment_expires_at', '<', now()->subSeconds(self::PAYMENT_EXPIRY_GRACE_SECONDS))
             ->get()
             ->filter(fn (Booking $booking) => $booking->failPayment('expire'))
             ->count();

@@ -185,7 +185,8 @@ class MidtransCheckoutTest extends TestCase
         $this->book($product, (string) Str::uuid());
         $booking = Booking::sole();
 
-        $this->travel(16)->minutes();
+        // Masa berlaku 15 menit + tenggang Booking::PAYMENT_EXPIRY_GRACE_SECONDS
+        $this->travel(18)->minutes();
 
         $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
             ->assertRedirect(route('product.show', $product->id))
