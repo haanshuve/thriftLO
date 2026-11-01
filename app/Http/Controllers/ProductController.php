@@ -609,6 +609,25 @@ class ProductController extends Controller
     {
         $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
 
+        // Booking ikut terhapus (cascade), jadi barang yang masih di-booking atau ditunggu pembayaran
+        // QRIS-nya tidak boleh dihapus: settlement yang datang sesudahnya tidak akan punya booking lagi.
+        // Baris produk dikunci seperti di bookProduct supaya booking baru tidak masuk di sela pengecekan.
+        $deleted = DB::transaction(function () use ($product) {
+            Product::whereKey($product->id)->lockForUpdate()->first();
+
+            if (Booking::where('active_product_id', $product->id)->exists()) {
+                return false;
+            }
+
+            $product->delete();
+
+            return true;
+        });
+
+        if (!$deleted) {
+            return redirect()->back()->with('error', 'Barang ini sedang di-booking pembeli, jadi belum bisa dihapus. Batalkan booking-nya dulu dari dashboard, atau tunggu pembayaran QRIS-nya kedaluwarsa.');
+        }
+
         if ($product->image_url && !filter_var($product->image_url, FILTER_VALIDATE_URL)) {
             Storage::disk('public')->delete($product->image_url);
         }
@@ -616,8 +635,6 @@ class ProductController extends Controller
         if ($product->video_proof_path) {
             Storage::disk('public')->delete($product->video_proof_path);
         }
-
-        $product->delete();
 
         return redirect()->back()->with('success', 'Barang preloved berhasil dihapus dari inventaris!');
     }

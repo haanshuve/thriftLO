@@ -165,4 +165,41 @@ class MidtransBookingPaymentTest extends TestCase
             ->assertOk()
             ->assertViewHas('stats', fn ($stats) => $stats['bookingFees'] === 0);
     }
+
+    // Booking ikut terhapus bersama barangnya, jadi settlement sesudahnya akan jatuh ke order tak dikenal
+    public function test_seller_cannot_delete_product_while_payment_is_awaited(): void
+    {
+        $booking = $this->awaitingBooking();
+
+        $this->actingAs($this->seller)->from('/dashboard')->delete(route('product.destroy', $booking->product_id))
+            ->assertRedirect('/dashboard')
+            ->assertSessionHas('error');
+
+        $this->assertModelExists($booking->product);
+        $this->assertSame('paid', $booking->fresh()->markFeePaid());
+    }
+
+    public function test_seller_cannot_delete_product_with_active_booking(): void
+    {
+        $booking = $this->awaitingBooking();
+        $booking->markFeePaid();
+
+        $this->actingAs($this->seller)->delete(route('product.destroy', $booking->product_id))
+            ->assertSessionHas('error');
+
+        $this->assertModelExists($booking->fresh());
+        $this->assertSame(Booking::FEE_PAID, $booking->fresh()->fee_status);
+    }
+
+    public function test_seller_can_delete_product_after_payment_failed(): void
+    {
+        $booking = $this->awaitingBooking();
+        $booking->failPayment('expire');
+        $product = $booking->product;
+
+        $this->actingAs($this->seller)->delete(route('product.destroy', $product->id))
+            ->assertSessionHas('success');
+
+        $this->assertModelMissing($product);
+    }
 }
