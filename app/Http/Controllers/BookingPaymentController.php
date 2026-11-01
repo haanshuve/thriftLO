@@ -19,10 +19,23 @@ class BookingPaymentController extends Controller
             return view('booking-pay', ['booking' => $booking]);
         }
 
-        if ($booking->fee_status === Booking::FEE_PAID) {
-            return redirect()->route('bookings.index')->with('success', 'Pembayaran biaya booking Rp' . number_format($booking->booking_fee, 0, ',', '.') . ' berhasil. Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $booking->qr_token . ' di bawah ini.');
+        $rupiahFee = 'Rp' . number_format($booking->booking_fee, 0, ',', '.');
+
+        if ($booking->status_cod === 'Completed') {
+            return redirect()->route('bookings.index', ['tab' => 'riwayat'])->with('success', 'Booking ini sudah selesai.');
         }
 
+        if ($booking->fee_status === Booking::FEE_PAID) {
+            return redirect()->route('bookings.index')->with('success', 'Pembayaran biaya booking ' . $rupiahFee . ' berhasil. Barangnya udah dikunci buat kamu. Tinggal ketemuan sama penjualnya dan tunjukin token ' . $booking->qr_token . ' di bawah ini.');
+        }
+
+        // Dibatalkan setelah lunas, atau settlement datang setelah booking dilepas: fee tetap milik platform
+        if ($booking->fee_status === Booking::FEE_FORFEITED) {
+            return redirect()->route('bookings.index', ['tab' => 'riwayat'])
+                ->with('error', 'Booking ini sudah dibatalkan. Biaya booking ' . $rupiahFee . ' tidak dapat dikembalikan dan menjadi milik platform.');
+        }
+
+        // Pembayaran tidak pernah masuk (kedaluwarsa/gagal): tidak ada biaya
         return redirect()->route('product.show', $booking->product_id)
             ->with('error', ($booking->cancelReasonLabel() ?? 'Pembayaran tidak selesai') . '. Barangnya tidak dikunci dan kamu tidak dikenai biaya. Silakan booking ulang kalau masih tersedia.');
     }

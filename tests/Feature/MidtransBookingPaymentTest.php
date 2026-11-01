@@ -177,6 +177,40 @@ class MidtransBookingPaymentTest extends TestCase
             ->assertViewHas('stats', fn ($stats) => $stats['bookingFees'] === 0);
     }
 
+    // Halaman bayar dibuka lagi setelah fee lunas lalu booking dibatalkan: jangan bilang "tidak dikenai biaya"
+    public function test_payment_page_of_cancelled_paid_booking_says_fee_is_platform_owned(): void
+    {
+        $booking = $this->awaitingBooking();
+        $booking->markFeePaid();
+        $booking->cancelByBuyer('berubah_pikiran');
+
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertRedirect(route('bookings.index', ['tab' => 'riwayat']))
+            ->assertSessionHas('error', 'Booking ini sudah dibatalkan. Biaya booking Rp2.000 tidak dapat dikembalikan dan menjadi milik platform.');
+    }
+
+    public function test_payment_page_after_late_settlement_says_fee_is_platform_owned(): void
+    {
+        $booking = $this->awaitingBooking();
+        $booking->failPayment('expire');
+        $booking->fresh()->markFeePaid();
+
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertRedirect(route('bookings.index', ['tab' => 'riwayat']))
+            ->assertSessionHas('error', fn ($msg) => str_contains($msg, 'menjadi milik platform') && !str_contains($msg, 'tidak dikenai biaya'));
+    }
+
+    public function test_payment_page_of_completed_booking_does_not_show_token_again(): void
+    {
+        $booking = $this->awaitingBooking();
+        $booking->markFeePaid();
+        $booking->forceFill(['status_cod' => 'Completed'])->save();
+
+        $this->actingAs($this->buyer)->get(route('booking.pay', $booking))
+            ->assertRedirect(route('bookings.index', ['tab' => 'riwayat']))
+            ->assertSessionHas('success', 'Booking ini sudah selesai.');
+    }
+
     // Booking ikut terhapus bersama barangnya, jadi settlement sesudahnya akan jatuh ke order tak dikenal
     public function test_seller_cannot_delete_product_while_payment_is_awaited(): void
     {
