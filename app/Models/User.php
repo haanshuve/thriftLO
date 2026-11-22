@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\GeoPoint;
 use App\Support\SellerLocation;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -133,9 +134,7 @@ class User extends Authenticatable
 
     public function codPointMapsUrl(): ?string
     {
-        return $this->hasCodPoint()
-            ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($this->cod_latitude . ',' . $this->cod_longitude)
-            : null;
+        return $this->hasCodPoint() ? GeoPoint::googleMapsUrl($this->cod_latitude, $this->cod_longitude) : null;
     }
 
     // Lokasi untuk ditampilkan ke pembeli, mis. "Nagoya, Batam"

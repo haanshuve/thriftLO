@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\GeoPoint;
 use App\Support\QrCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -59,6 +60,12 @@ class Booking extends Model
         'user_id',
         'qr_token',
         'cod_location',
+        'meeting_latitude',
+        'meeting_longitude',
+        'buyer_latitude',
+        'buyer_longitude',
+        'seller_distance_km',
+        'buyer_distance_km',
         'cod_schedule',
         'status_cod',
         'booking_fee',
@@ -99,7 +106,35 @@ class Booking extends Model
             'paid_at'            => 'datetime',
             'cancelled_at'       => 'datetime',
             'payment_expires_at' => 'datetime',
+            'meeting_latitude'   => 'float',
+            'meeting_longitude'  => 'float',
+            'buyer_latitude'     => 'float',
+            'buyer_longitude'    => 'float',
+            'seller_distance_km' => 'float',
+            'buyer_distance_km'  => 'float',
         ];
+    }
+
+    // Booking lama (sebelum pin titik ketemuan) hanya punya keterangan teks cod_location
+    public function hasMeetingPoint(): bool
+    {
+        return $this->meeting_latitude !== null && $this->meeting_longitude !== null;
+    }
+
+    public function meetingMapsUrl(): ?string
+    {
+        return $this->hasMeetingPoint() ? GeoPoint::googleMapsUrl($this->meeting_latitude, $this->meeting_longitude) : null;
+    }
+
+    // Mis. "Penjual 2.1 km · Pembeli 1.8 km"; bagian yang tidak diketahui dilewati
+    public function meetingDistanceLabel(string $buyerLabel = 'Pembeli'): ?string
+    {
+        $parts = array_filter([
+            $this->seller_distance_km !== null ? 'Penjual ' . number_format($this->seller_distance_km, 1) . ' km' : null,
+            $this->buyer_distance_km !== null ? $buyerLabel . ' ' . number_format($this->buyer_distance_km, 1) . ' km' : null,
+        ]);
+
+        return $parts ? implode(' · ', $parts) : null;
     }
 
     public function product()

@@ -9,20 +9,20 @@
 @endphp
 
 <div>
-    <h2 class="font-bold text-slate-900">Titik COD</h2>
+    <h2 class="font-bold text-slate-900">Lokasi acuan COD</h2>
     <p class="text-sm text-slate-500 mt-0.5">
-        Tempat ketemuan COD yang kamu sarankan. Pembeli melihatnya sebagai peta kecil dan tombol "Buka di Google Maps" di halaman barang dan tiket booking.
+        Patokan lokasimu untuk COD. Pembeli memilih titik ketemuan sendiri saat booking, maksimal {{ config('thriftlo.cod_point.max_km') }} km dari lokasi acuan ini, dan melihat jarak untuk kalian berdua.
     </p>
 
     @if (session('status') === 'cod-point-updated')
-        <p class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">✅ Titik COD berhasil disimpan.</p>
+        <p class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">✅ Lokasi acuan COD berhasil disimpan.</p>
     @elseif (session('status') === 'cod-point-deleted')
-        <p class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">✅ Titik COD dihapus.</p>
+        <p class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">✅ Lokasi acuan COD dihapus.</p>
     @endif
 
     @if($codErrors->any())
         <div class="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700" role="alert">
-            <p class="font-semibold">Titik COD belum tersimpan:</p>
+            <p class="font-semibold">Lokasi acuan COD belum tersimpan:</p>
             <ul class="list-disc list-inside mt-0.5">
                 @foreach($codErrors->all() as $error)
                     <li>{{ $error }}</li>
@@ -33,7 +33,7 @@
 
     @unless($canSetPoint)
         <p class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            Lapakmu di luar Batam, jadi pembeli tidak bisa COD. Titik COD bisa diatur setelah lokasi lapak diubah ke kawasan Batam.
+            Lapakmu di luar Batam, jadi pembeli tidak bisa COD. Lokasi acuan COD bisa diatur setelah lokasi lapak diubah ke kawasan Batam.
         </p>
     @else
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -55,7 +55,7 @@
                      role="application" aria-labelledby="codMapLabel" aria-describedby="codMapHint"
                      data-center-lat="{{ $center['lat'] }}" data-center-lng="{{ $center['lng'] }}" data-zoom="{{ config('thriftlo.cod_point.zoom') }}"
                      data-areas="{{ json_encode(config('thriftlo.cod_point.areas')) }}"></div>
-                <p id="codMapHint" class="text-xs text-slate-500 mt-1">Geser pin atau ketuk peta di titik ketemuan di wilayah Batam. Koordinat juga bisa diisi manual di bawah.</p>
+                <p id="codMapHint" class="text-xs text-slate-500 mt-1">Geser pin atau ketuk peta di lokasi acuanmu di wilayah Batam. Koordinat juga bisa diisi manual di bawah.</p>
                 <p id="codMapStatus" class="text-xs font-semibold mt-1 hidden" role="status" aria-live="polite"></p>
             </div>
 
@@ -83,14 +83,14 @@
                        class="w-full rounded-lg border-slate-300 text-sm focus:border-emerald-500 focus:ring-emerald-500">
             </div>
 
-            <button type="submit" class="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Simpan titik COD</button>
+            <button type="submit" class="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Simpan lokasi acuan</button>
         </form>
 
         @if($user->cod_latitude !== null)
-            <form method="post" action="{{ route('profile.cod-point.destroy') }}" class="mt-2" onsubmit="return confirm('Hapus titik COD?')">
+            <form method="post" action="{{ route('profile.cod-point.destroy') }}" class="mt-2" onsubmit="return confirm('Hapus lokasi acuan COD?')">
                 @csrf
                 @method('delete')
-                <button type="submit" class="text-sm font-semibold text-rose-600 hover:underline">Hapus titik COD</button>
+                <button type="submit" class="text-sm font-semibold text-rose-600 hover:underline">Hapus lokasi acuan</button>
             </form>
         @endif
 
@@ -183,9 +183,9 @@
                     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
                 }).addTo(map);
 
-                const marker = L.marker(start, { draggable: true, autoPan: true, keyboard: true, title: 'Pin titik COD' }).addTo(map);
+                const marker = L.marker(start, { draggable: true, autoPan: true, keyboard: true, title: 'Pin lokasi acuan COD' }).addTo(map);
                 if (!hasPoint) {
-                    marker.bindTooltip('Geser aku ke titik COD', { permanent: true, direction: 'top', offset: [0, -36] }).openTooltip();
+                    marker.bindTooltip('Geser aku ke lokasi acuanmu', { permanent: true, direction: 'top', offset: [0, -36] }).openTooltip();
                 }
 
                 function setPoint(latlng, pan) {

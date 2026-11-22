@@ -11,6 +11,9 @@ use App\Models\User;
 use App\Payments\BookingFeeGateway;
 use App\Payments\PaymentException;
 use App\Support\FormToken;
+use App\Support\GeoPoint;
+use App\Support\SellerLocation;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -393,6 +396,56 @@ class ProductController extends Controller
         return ['brand_id' => filled($choice) ? (int) $choice : null, 'brand_other' => null];
     }
 
+    /**
+     * Titik ketemuan usulan pembeli: harus di wilayah Batam, dan kalau penjual punya lokasi acuan COD,
+     * tidak lebih jauh dari cod_point.max_km darinya. Jarak dihitung ulang di server (angka dari
+     * browser tidak dipercaya) lalu disimpan ke booking.
+     *
+     * @return array<string, float|null>
+     */
+    private function meetingPointAttributes(Request $request, Product $product): array
+    {
+        $lat = (float) $request->input('meeting_latitude');
+        $lng = (float) $request->input('meeting_longitude');
+
+        if (!SellerLocation::isInBatamArea($lat, $lng)) {
+            throw ValidationException::withMessages([
+                'meeting_latitude' => 'Titik ketemuan harus berada di wilayah Batam.',
+            ])->errorBag('booking');
+        }
+
+        $seller = $product->user;
+        $sellerKm = null;
+        if ($seller?->hasCodPoint()) {
+            $sellerKm = GeoPoint::distanceKm($lat, $lng, $seller->cod_latitude, $seller->cod_longitude);
+            $maxKm = (float) config('thriftlo.cod_point.max_km');
+
+            // Dibandingkan setelah dibulatkan 1 desimal, sama dengan angka yang dilihat pembeli
+            if (GeoPoint::roundKm($sellerKm) > $maxKm) {
+                throw ValidationException::withMessages([
+                    'meeting_latitude' => sprintf(
+                        'Titik ketemuan terlalu jauh dari lokasi acuan penjual (%s km). Maksimal %s km.',
+                        number_format(GeoPoint::roundKm($sellerKm), 1),
+                        rtrim(rtrim(number_format($maxKm, 1), '0'), '.')
+                    ),
+                ])->errorBag('booking');
+            }
+        }
+
+        $hasBuyer = $request->filled('buyer_latitude') && $request->filled('buyer_longitude');
+        $buyerLat = $hasBuyer ? (float) $request->input('buyer_latitude') : null;
+        $buyerLng = $hasBuyer ? (float) $request->input('buyer_longitude') : null;
+
+        return [
+            'meeting_latitude'   => round($lat, 7),
+            'meeting_longitude'  => round($lng, 7),
+            'buyer_latitude'     => $hasBuyer ? round($buyerLat, 7) : null,
+            'buyer_longitude'    => $hasBuyer ? round($buyerLng, 7) : null,
+            'seller_distance_km' => $sellerKm !== null ? GeoPoint::roundKm($sellerKm) : null,
+            'buyer_distance_km'  => $hasBuyer ? GeoPoint::roundKm(GeoPoint::distanceKm($lat, $lng, $buyerLat, $buyerLng)) : null,
+        ];
+    }
+
     public function bookProduct(Request $request, $id)
     {
         if (!Auth::check()) {
@@ -404,9 +457,30 @@ class ProductController extends Controller
             return redirect()->route('product.show', $id)->with('error', User::ADMIN_CANNOT_BUY_MESSAGE);
         }
 
-        $request->validate([
-            'lokasi_cod' => 'required|string|max:255',
-            'waktu_cod'  => 'required',
+        $noteMax = (int) config('thriftlo.cod_point.meeting_note_max');
+        // Spasi di awal/akhir tidak dihitung, sama seperti penghitung karakter di popup
+        $request->merge(['lokasi_cod' => trim((string) $request->input('lokasi_cod'))]);
+        $request->validateWithBag('booking', [
+            // Keterangan tempat ketemuan; titik pastinya ada di meeting_latitude/longitude
+            'lokasi_cod'        => 'required|string|max:' . $noteMax,
+            'waktu_cod'         => 'required',
+            'meeting_latitude'  => 'required|numeric|between:-90,90',
+            'meeting_longitude' => 'required|numeric|between:-180,180',
+            // Lokasi pembeli opsional (hanya dari tombol "Gunakan lokasi saya"), tapi harus berpasangan
+            'buyer_latitude'    => 'nullable|required_with:buyer_longitude|numeric|between:-90,90',
+            'buyer_longitude'   => 'nullable|required_with:buyer_latitude|numeric|between:-180,180',
+        ], [
+            'lokasi_cod.required'        => 'Tulis keterangan tempat ketemuan, mis. "Depan Mega Mall".',
+            'lokasi_cod.max'             => "Keterangan tempat maksimal {$noteMax} karakter.",
+            'waktu_cod.required'         => 'Pilih jadwal ketemuan.',
+            'meeting_latitude.required'  => 'Pasang pin titik ketemuan di peta dulu.',
+            'meeting_longitude.required' => 'Pasang pin titik ketemuan di peta dulu.',
+            'meeting_latitude.numeric'   => 'Koordinat titik ketemuan tidak valid.',
+            'meeting_longitude.numeric'  => 'Koordinat titik ketemuan tidak valid.',
+            'meeting_latitude.between'   => 'Latitude titik ketemuan harus di antara -90 dan 90.',
+            'meeting_longitude.between'  => 'Longitude titik ketemuan harus di antara -180 dan 180.',
+            'buyer_latitude.*'           => 'Lokasimu tidak terbaca dengan benar. Tekan "Gunakan lokasi saya" lagi.',
+            'buyer_longitude.*'          => 'Lokasimu tidak terbaca dengan benar. Tekan "Gunakan lokasi saya" lagi.',
         ]);
         $formKey = FormToken::validate($request);
 
@@ -433,6 +507,8 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Barang ini sedang tidak ditayangkan penjualnya.');
         }
 
+        $meetingPoint = $this->meetingPointAttributes($request, $product);
+
         $gateway = app(BookingFeeGateway::class);
         $viaGateway = !$gateway->isSimulation();
 
@@ -448,7 +524,7 @@ class ProductController extends Controller
         try {
             // Kunci baris produk: booking dan checkout Kirim untuk barang yang sama saling menunggu,
             // lalu status dicek ulang di dalam kunci supaya barang tidak terjual dua kali.
-            $booking = DB::transaction(function () use ($request, $product, $fee, $formKey, $viaGateway) {
+            $booking = DB::transaction(function () use ($request, $product, $fee, $formKey, $viaGateway, $meetingPoint) {
                 $locked = Product::visibleInCatalog()->whereKey($product->id)->lockForUpdate()->first();
 
                 if (!$locked || $locked->status !== 'Available') {
@@ -462,6 +538,7 @@ class ProductController extends Controller
                     'idempotency_key' => $formKey,
                     'cod_location'    => $request->lokasi_cod,
                     'cod_schedule'    => $request->waktu_cod,
+                    ...$meetingPoint,
                     'status_cod'       => $viaGateway ? Booking::AWAITING_PAYMENT : 'Pending',
                     'booking_fee'      => $fee,
                     'fee_status'       => $viaGateway ? Booking::FEE_PENDING : Booking::FEE_PAID,

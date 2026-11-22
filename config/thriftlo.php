@@ -93,8 +93,15 @@ return [
     | supaya selatan Singapura (lat > 1.215) dan Tanjung Uban, Bintan (lng > 104.20) tidak ikut,
     | sementara Rempang-Galang (masih Kota Batam, tersambung jembatan Barelang) tetap tercakup.
     | Batasnya perkiraan; cek ulang di peta kalau ada titik sah yang tertolak.
+    | max_km: jarak maksimal (garis lurus, Haversine) titik ketemuan yang diusulkan pembeli dari
+    | lokasi acuan COD penjual. Dilewati kalau penjual belum memasang lokasi acuan.
+    | meeting_note_max: batas keterangan tempat ketemuan di popup booking (per karakter).
+    | fairness_warning_km: selisih jarak penjual vs pembeli yang memunculkan peringatan kuning.
     */
     'cod_point' => [
+        'max_km'              => 5,
+        'meeting_note_max'    => 60,
+        'fairness_warning_km' => 2,
         'address_max' => 150,
         'center'      => ['lat' => 1.1301, 'lng' => 104.0529],
         'zoom'        => 12,

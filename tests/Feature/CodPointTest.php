@@ -247,7 +247,7 @@ class CodPointTest extends TestCase
         $product = Product::create(['user_id' => $this->seller->id, 'title' => 'Jaket Parasut', 'price' => 90000, 'status' => 'Available']);
 
         $this->get(route('product.show', $product))->assertOk()
-            ->assertSee('Titik COD yang disarankan penjual')
+            ->assertSee('Lokasi acuan COD penjual')
             ->assertSee('Depan Nagoya Hill Mall')
             ->assertSee('tile.openstreetmap.org/16/', false)
             ->assertSee('https://www.google.com/maps/search/?api=1&amp;query=1.1442%2C104.0109', false);
@@ -257,7 +257,10 @@ class CodPointTest extends TestCase
     {
         $product = Product::create(['user_id' => $this->seller->id, 'title' => 'Jaket Parasut', 'price' => 90000, 'status' => 'Available']);
 
-        $this->get(route('product.show', $product))->assertOk()->assertDontSee('Buka di Google Maps');
+        // Popup booking selalu punya peta ringkasan (tersembunyi), jadi yang dicek adalah blok lokasi acuan penjual
+        $this->get(route('product.show', $product))->assertOk()
+            ->assertDontSee('Lokasi acuan COD penjual')
+            ->assertDontSee('data-seller-lat=', false);
     }
 
     public function test_active_booking_shows_seller_cod_point(): void
@@ -271,7 +274,7 @@ class CodPointTest extends TestCase
         ]);
 
         $this->actingAs($buyer)->get(route('bookings.index'))->assertOk()
-            ->assertSee('Titik COD penjual')
+            ->assertSee('Lokasi acuan COD penjual')
             ->assertSee('Buka di Google Maps');
     }
 }

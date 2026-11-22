@@ -134,10 +134,17 @@
                         </div>
                     </div>
 
-                    @if($isActive && $seller?->hasCodPoint())
-                        <!-- Titik COD penjual -->
+                    @if($isActive && $b->hasMeetingPoint())
+                        <!-- Titik ketemuan yang kamu pilih saat booking -->
                         <div class="mx-4 mb-4">
-                            <p class="text-xs font-semibold text-slate-700 mb-1.5">Titik COD penjual</p>
+                            <p class="text-xs font-semibold text-slate-700 mb-1.5">Titik ketemuan</p>
+                            <x-cod-point-map compact :lat="$b->meeting_latitude" :lng="$b->meeting_longitude" :label="$b->cod_location"
+                                             :distance="$b->meetingDistanceLabel('Kamu')" />
+                        </div>
+                    @elseif($isActive && $seller?->hasCodPoint())
+                        <!-- Booking lama tanpa titik ketemuan: tampilkan lokasi acuan penjual seperti sebelumnya -->
+                        <div class="mx-4 mb-4">
+                            <p class="text-xs font-semibold text-slate-700 mb-1.5">Lokasi acuan COD penjual</p>
                             <x-cod-point-map :seller="$seller" compact />
                         </div>
                     @endif
