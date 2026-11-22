@@ -19,6 +19,9 @@ use App\Http\Controllers\SubscriptionController;
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
 Route::get('/product/{product}', [ProductController::class, 'show'])->name('product.show');
+// Saran tempat COD yang adil untuk popup booking (JSON); lokasi pembeli dikirim lewat ?lat=&lng=
+Route::get('/product/{product}/saran-cod', [ProductController::class, 'codSuggestions'])
+    ->middleware('throttle:60,1')->name('product.codSuggestions');
 Route::get('/merek', [BrandController::class, 'index'])->name('brands.index');
 Route::get('/merek/{brand}', [BrandController::class, 'show'])->name('brands.show');
 

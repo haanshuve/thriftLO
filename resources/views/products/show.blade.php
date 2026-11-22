@@ -157,6 +157,7 @@
                             @endif
                             @auth
                                 <button type="button" data-url="{{ route('product.book', $product->id) }}" data-name="{{ $product->title }}" data-price="{{ $price }}" onclick="openBookingModal(this)"
+                                        data-suggest-url="{{ route('product.codSuggestions', $product) }}"
                                         @if($seller->hasCodPoint()) data-seller-lat="{{ $seller->cod_latitude }}" data-seller-lng="{{ $seller->cod_longitude }}" data-seller-label="{{ $seller->cod_address }}" @endif
                                         class="mt-3 w-full h-11 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition active:scale-[0.98] motion-reduce:transform-none">
                                     Booking COD

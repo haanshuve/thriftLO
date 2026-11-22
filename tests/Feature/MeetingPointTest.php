@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 /**
  * Titik ketemuan COD usulan pembeli di popup booking: wilayah Batam, jarak maksimal dari lokasi
- * acuan penjual (cod_point.max_km), keterangan 60 karakter, dan tampilan di dashboard/Tiket Saya.
+ * acuan penjual & pembeli (cod_point.max_each_km), keterangan 60 karakter, dan tampilan di dashboard/Tiket Saya.
  */
 class MeetingPointTest extends TestCase
 {
@@ -23,6 +23,8 @@ class MeetingPointTest extends TestCase
     // Titik yang diketahui: Nagoya 4.9 km dari Batam Centre, Batu Aji 12.5 km
     private const NAGOYA = [1.1442, 104.0109];
     private const BATU_AJI = [1.0437, 103.9806];
+    // Lokasi pembeli contoh: Baloi, 3.7 km dari Batam Centre dan 1.9 km dari Nagoya
+    private const BALOI = [1.1300, 104.0200];
 
     private User $seller;
     private User $buyer;
@@ -86,16 +88,16 @@ class MeetingPointTest extends TestCase
     {
         $product = $this->product();
 
-        $this->book($product, ['buyer_latitude' => self::BATU_AJI[0], 'buyer_longitude' => self::BATU_AJI[1]])
+        $this->book($product, ['buyer_latitude' => self::BALOI[0], 'buyer_longitude' => self::BALOI[1]])
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('bookings.index'));
 
         $booking = Booking::sole();
         $this->assertSame('Depan Nagoya Hill', $booking->cod_location);
         $this->assertSame(self::NAGOYA, [$booking->meeting_latitude, $booking->meeting_longitude]);
-        $this->assertSame(self::BATU_AJI, [$booking->buyer_latitude, $booking->buyer_longitude]);
+        $this->assertSame(self::BALOI, [$booking->buyer_latitude, $booking->buyer_longitude]);
         $this->assertSame(4.9, $booking->seller_distance_km);
-        $this->assertSame(GeoPoint::roundKm(GeoPoint::distanceKm(...self::NAGOYA, ...self::BATU_AJI)), $booking->buyer_distance_km);
+        $this->assertSame(GeoPoint::roundKm(GeoPoint::distanceKm(...self::NAGOYA, ...self::BALOI)), $booking->buyer_distance_km);
         $this->assertSame('Booked', $product->fresh()->status);
     }
 
@@ -158,34 +160,34 @@ class MeetingPointTest extends TestCase
 
     // --- Jarak maksimal dari lokasi acuan penjual ---
 
-    public function test_meeting_point_farther_than_max_km_is_rejected(): void
+    public function test_meeting_point_farther_than_max_each_km_from_seller_is_rejected(): void
     {
         $product = $this->product();
 
         $this->book($product, ['meeting_latitude' => self::BATU_AJI[0], 'meeting_longitude' => self::BATU_AJI[1]])
             ->assertSessionHasErrorsIn('booking', [
-                'meeting_latitude' => 'Titik ketemuan terlalu jauh dari lokasi acuan penjual (12.5 km). Maksimal 5 km.',
+                'meeting_latitude' => 'Titik ketemuan terlalu jauh dari lokasi acuan penjual (12.5 km). Maksimal 6 km untuk masing-masing pihak.',
             ]);
         $this->assertNotBooked($product);
     }
 
-    public function test_max_km_uses_the_rounded_distance_shown_to_buyer(): void
+    public function test_max_each_km_uses_the_rounded_distance_shown_to_buyer(): void
     {
         // Ke utara sepanjang meridian: jarak = Δlat × 111.195 km
         $product = $this->product();
-        $this->book($product, ['meeting_latitude' => self::SELLER[0] + 0.0453, 'meeting_longitude' => self::SELLER[1]]) // 5.04 → 5.0 km
+        $this->book($product, ['meeting_latitude' => self::SELLER[0] + 0.0543, 'meeting_longitude' => self::SELLER[1]]) // 6.04 → 6.0 km
             ->assertSessionHasNoErrors();
-        $this->assertSame(5.0, Booking::sole()->seller_distance_km);
+        $this->assertSame(6.0, Booking::sole()->seller_distance_km);
 
         $other = $this->product();
-        $this->book($other, ['meeting_latitude' => self::SELLER[0] + 0.0459, 'meeting_longitude' => self::SELLER[1]]) // 5.10 → 5.1 km
+        $this->book($other, ['meeting_latitude' => self::SELLER[0] + 0.0549, 'meeting_longitude' => self::SELLER[1]]) // 6.10 → 6.1 km
             ->assertSessionHasErrorsIn('booking', ['meeting_latitude']);
         $this->assertSame('Available', $other->fresh()->status);
     }
 
-    public function test_max_km_comes_from_config(): void
+    public function test_max_each_km_comes_from_config(): void
     {
-        config(['thriftlo.cod_point.max_km' => 15]);
+        config(['thriftlo.cod_point.max_each_km' => 15]);
 
         $this->book($this->product(), ['meeting_latitude' => self::BATU_AJI[0], 'meeting_longitude' => self::BATU_AJI[1]])
             ->assertSessionHasNoErrors();
@@ -254,7 +256,8 @@ class MeetingPointTest extends TestCase
             ->assertSee('maxlength="60"', false)
             ->assertSee('placeholder="Depan Mega Mall"', false)
             ->assertSee('0/60')
-            ->assertSee('data-max-km="5"', false)
+            ->assertSee('data-max-each-km="6"', false)
+            ->assertSee('data-suggest-url="' . route('product.codSuggestions', $product) . '"', false)
             ->assertSee('data-seller-lat="1.1301"', false)
             ->assertSee('data-seller-lng="104.0529"', false);
     }
@@ -272,7 +275,7 @@ class MeetingPointTest extends TestCase
 
     public function test_buyer_ticket_and_seller_dashboard_show_meeting_point(): void
     {
-        $this->book($this->product(), ['buyer_latitude' => self::BATU_AJI[0], 'buyer_longitude' => self::BATU_AJI[1]]);
+        $this->book($this->product(), ['buyer_latitude' => self::BALOI[0], 'buyer_longitude' => self::BALOI[1]]);
         $booking = Booking::sole();
         $mapsUrl = 'https://www.google.com/maps/search/?api=1&amp;query=' . rawurlencode(self::NAGOYA[0] . ',' . self::NAGOYA[1]);
         $buyerKm = number_format($booking->buyer_distance_km, 1);

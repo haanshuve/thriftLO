@@ -11,7 +11,7 @@
 <div>
     <h2 class="font-bold text-slate-900">Lokasi acuan COD</h2>
     <p class="text-sm text-slate-500 mt-0.5">
-        Patokan lokasimu untuk COD. Pembeli memilih titik ketemuan sendiri saat booking, maksimal {{ config('thriftlo.cod_point.max_km') }} km dari lokasi acuan ini, dan melihat jarak untuk kalian berdua.
+        Patokan lokasimu untuk COD. Saat booking, sistem menyarankan tempat COD populer yang jaraknya paling adil untukmu dan pembeli, masing-masing maksimal {{ config('thriftlo.cod_point.max_each_km') }} km dari titik ketemuan.
     </p>
 
     @if (session('status') === 'cod-point-updated')

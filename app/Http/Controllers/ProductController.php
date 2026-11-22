@@ -10,9 +10,8 @@ use App\Models\Order;
 use App\Models\User;
 use App\Payments\BookingFeeGateway;
 use App\Payments\PaymentException;
+use App\Support\CodSpots;
 use App\Support\FormToken;
-use App\Support\GeoPoint;
-use App\Support\SellerLocation;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
@@ -396,53 +395,58 @@ class ProductController extends Controller
         return ['brand_id' => filled($choice) ? (int) $choice : null, 'brand_other' => null];
     }
 
+    /** @return array{lat: float, lng: float}|null lokasi acuan COD penjual produk ini */
+    private function sellerCodPoint(Product $product): ?array
+    {
+        $seller = $product->user;
+
+        return $seller?->hasCodPoint() ? ['lat' => $seller->cod_latitude, 'lng' => $seller->cod_longitude] : null;
+    }
+
     /**
-     * Titik ketemuan usulan pembeli: harus di wilayah Batam, dan kalau penjual punya lokasi acuan COD,
-     * tidak lebih jauh dari cod_point.max_km darinya. Jarak dihitung ulang di server (angka dari
-     * browser tidak dipercaya) lalu disimpan ke booking.
+     * Saran tempat COD yang adil untuk popup booking (JSON). Lokasi pembeli opsional (?lat=&lng=);
+     * tanpa lokasi pembeli, saran diurutkan dari yang terdekat dengan penjual.
+     */
+    public function codSuggestions(Request $request, Product $product)
+    {
+        abort_unless($product->supportsCod(), 404);
+
+        $data = $request->validate([
+            'lat' => 'nullable|required_with:lng|numeric|between:-90,90',
+            'lng' => 'nullable|required_with:lat|numeric|between:-180,180',
+        ]);
+        $buyer = isset($data['lat'], $data['lng']) ? ['lat' => (float) $data['lat'], 'lng' => (float) $data['lng']] : null;
+
+        return response()->json(CodSpots::suggest($buyer, $this->sellerCodPoint($product)));
+    }
+
+    /**
+     * Titik ketemuan usulan pembeli, divalidasi dengan aturan keadilan (CodSpots::violation): di wilayah
+     * Batam, dan maksimal cod_point.max_each_km dari penjual (kalau punya lokasi acuan) dan dari pembeli
+     * (kalau lokasinya dikirim). Jarak dihitung ulang di server (angka dari browser tidak dipercaya)
+     * lalu disimpan ke booking.
      *
      * @return array<string, float|null>
      */
     private function meetingPointAttributes(Request $request, Product $product): array
     {
-        $lat = (float) $request->input('meeting_latitude');
-        $lng = (float) $request->input('meeting_longitude');
+        $meeting = ['lat' => (float) $request->input('meeting_latitude'), 'lng' => (float) $request->input('meeting_longitude')];
+        $buyer = $request->filled('buyer_latitude') && $request->filled('buyer_longitude')
+            ? ['lat' => (float) $request->input('buyer_latitude'), 'lng' => (float) $request->input('buyer_longitude')]
+            : null;
+        $seller = $this->sellerCodPoint($product);
 
-        if (!SellerLocation::isInBatamArea($lat, $lng)) {
-            throw ValidationException::withMessages([
-                'meeting_latitude' => 'Titik ketemuan harus berada di wilayah Batam.',
-            ])->errorBag('booking');
+        if ($violation = CodSpots::violation($meeting, $buyer, $seller)) {
+            throw ValidationException::withMessages([$violation['field'] => $violation['message']])->errorBag('booking');
         }
-
-        $seller = $product->user;
-        $sellerKm = null;
-        if ($seller?->hasCodPoint()) {
-            $sellerKm = GeoPoint::distanceKm($lat, $lng, $seller->cod_latitude, $seller->cod_longitude);
-            $maxKm = (float) config('thriftlo.cod_point.max_km');
-
-            // Dibandingkan setelah dibulatkan 1 desimal, sama dengan angka yang dilihat pembeli
-            if (GeoPoint::roundKm($sellerKm) > $maxKm) {
-                throw ValidationException::withMessages([
-                    'meeting_latitude' => sprintf(
-                        'Titik ketemuan terlalu jauh dari lokasi acuan penjual (%s km). Maksimal %s km.',
-                        number_format(GeoPoint::roundKm($sellerKm), 1),
-                        rtrim(rtrim(number_format($maxKm, 1), '0'), '.')
-                    ),
-                ])->errorBag('booking');
-            }
-        }
-
-        $hasBuyer = $request->filled('buyer_latitude') && $request->filled('buyer_longitude');
-        $buyerLat = $hasBuyer ? (float) $request->input('buyer_latitude') : null;
-        $buyerLng = $hasBuyer ? (float) $request->input('buyer_longitude') : null;
 
         return [
-            'meeting_latitude'   => round($lat, 7),
-            'meeting_longitude'  => round($lng, 7),
-            'buyer_latitude'     => $hasBuyer ? round($buyerLat, 7) : null,
-            'buyer_longitude'    => $hasBuyer ? round($buyerLng, 7) : null,
-            'seller_distance_km' => $sellerKm !== null ? GeoPoint::roundKm($sellerKm) : null,
-            'buyer_distance_km'  => $hasBuyer ? GeoPoint::roundKm(GeoPoint::distanceKm($lat, $lng, $buyerLat, $buyerLng)) : null,
+            'meeting_latitude'   => round($meeting['lat'], 7),
+            'meeting_longitude'  => round($meeting['lng'], 7),
+            'buyer_latitude'     => $buyer ? round($buyer['lat'], 7) : null,
+            'buyer_longitude'    => $buyer ? round($buyer['lng'], 7) : null,
+            'seller_distance_km' => $seller ? CodSpots::km($meeting, $seller) : null,
+            'buyer_distance_km'  => $buyer ? CodSpots::km($meeting, $buyer) : null,
         ];
     }
 

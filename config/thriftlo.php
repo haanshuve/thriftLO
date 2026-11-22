@@ -93,13 +93,19 @@ return [
     | supaya selatan Singapura (lat > 1.215) dan Tanjung Uban, Bintan (lng > 104.20) tidak ikut,
     | sementara Rempang-Galang (masih Kota Batam, tersambung jembatan Barelang) tetap tercakup.
     | Batasnya perkiraan; cek ulang di peta kalau ada titik sah yang tertolak.
-    | max_km: jarak maksimal (garis lurus, Haversine) titik ketemuan yang diusulkan pembeli dari
-    | lokasi acuan COD penjual. Dilewati kalau penjual belum memasang lokasi acuan.
+    | Aturan keadilan titik ketemuan (jarak garis lurus/Haversine, dibandingkan setelah dibulatkan 1 desimal):
+    | max_each_km: jarak maksimal titik ketemuan ke penjual (lokasi acuan) dan ke pembeli, masing-masing.
+    |   Pihak yang lokasinya tidak diketahui dilewati. Kalau jarak langsung pembeli-penjual lebih dari
+    |   2 x max_each_km, COD ditolak dan pembeli diarahkan ke pengiriman.
+    | suggestion_limit: jumlah saran tempat (dari cod_spots) yang ditampilkan di popup.
+    | midpoint_snap_km: tombol "Titik tengah" menggeser hasilnya ke tempat cod_spots terdekat dalam radius ini.
     | meeting_note_max: batas keterangan tempat ketemuan di popup booking (per karakter).
     | fairness_warning_km: selisih jarak penjual vs pembeli yang memunculkan peringatan kuning.
     */
     'cod_point' => [
-        'max_km'              => 5,
+        'max_each_km'         => 6,
+        'suggestion_limit'    => 3,
+        'midpoint_snap_km'    => 1,
         'meeting_note_max'    => 60,
         'fairness_warning_km' => 2,
         'address_max' => 150,
@@ -109,6 +115,38 @@ return [
             ['label' => 'Pulau Batam & Belakang Padang', 'lat' => [0.95, 1.215], 'lng' => [103.85, 104.20]],
             ['label' => 'Rempang & Galang',              'lat' => [0.65, 0.95],  'lng' => [103.95, 104.30]],
         ],
+    ],
+
+    /*
+    | Tempat COD populer di Batam: tempat umum, ramai, dan mudah dicari, dipakai sebagai saran titik
+    | ketemuan di popup booking (App\Support\CodSpots). Nama maksimal 60 karakter karena otomatis
+    | menjadi keterangan tempat.
+    |
+    | VERIFIKASI: semua koordinat di bawah adalah PERKIRAAN (akurasi kira-kira beberapa ratus meter),
+    | belum diukur langsung. Cek tiap titik di openstreetmap.org atau Google Maps (klik kanan pada
+    | pintu masuk/area parkir utama, salin lat,lng) sebelum dipakai di produksi.
+    */
+    'cod_spots' => [
+        // Batam Centre / Batam Kota
+        ['name' => 'Mega Mall Batam Centre',     'lat' => 1.1290, 'lng' => 104.0530], // VERIFIKASI
+        ['name' => 'Kepri Mall',                 'lat' => 1.1185, 'lng' => 104.0445], // VERIFIKASI
+        ['name' => 'Pasar Botania',              'lat' => 1.1180, 'lng' => 104.0590], // VERIFIKASI
+        ['name' => 'Ocarina Batam Centre',       'lat' => 1.1430, 'lng' => 104.0620], // VERIFIKASI
+        // Nagoya / Lubuk Baja / Baloi
+        ['name' => 'Nagoya Hill Shopping Mall',  'lat' => 1.1465, 'lng' => 104.0112], // VERIFIKASI
+        ['name' => 'Grand Batam Mall',           'lat' => 1.1395, 'lng' => 104.0128], // VERIFIKASI
+        ['name' => 'BCS Mall',                   'lat' => 1.1356, 'lng' => 104.0200], // VERIFIKASI
+        ['name' => 'Harbour Bay Mall',           'lat' => 1.1555, 'lng' => 104.0030], // VERIFIKASI
+        // Sekupang / Tiban
+        ['name' => 'Tiban Center',               'lat' => 1.1130, 'lng' => 103.9590], // VERIFIKASI
+        ['name' => 'Pelabuhan Sekupang',         'lat' => 1.1230, 'lng' => 103.9480], // VERIFIKASI
+        // Mukakuning / Batu Aji / Sagulung
+        ['name' => 'Panbil Mall',                'lat' => 1.0798, 'lng' => 104.0346], // VERIFIKASI
+        ['name' => 'Top 100 Tembesi',            'lat' => 1.0400, 'lng' => 103.9900], // VERIFIKASI
+        ['name' => 'SP Plaza Sagulung',          'lat' => 1.0450, 'lng' => 103.9600], // VERIFIKASI
+        // Nongsa / Tanjung Piayu
+        ['name' => 'Pasar Batu Besar Nongsa',    'lat' => 1.1500, 'lng' => 104.1100], // VERIFIKASI
+        ['name' => 'Pasar Tanjung Piayu',        'lat' => 1.0460, 'lng' => 104.0700], // VERIFIKASI
     ],
 
 ];

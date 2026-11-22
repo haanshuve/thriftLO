@@ -57,7 +57,8 @@
         </ol>
 
         <form id="bookingForm" method="POST" action=""
-              data-max-km="{{ $codPoint['max_km'] }}" data-fair-km="{{ $codPoint['fairness_warning_km'] }}"
+              data-max-each-km="{{ $codPoint['max_each_km'] }}" data-snap-km="{{ $codPoint['midpoint_snap_km'] }}" data-fair-km="{{ $codPoint['fairness_warning_km'] }}"
+              data-spots="{{ json_encode(config('thriftlo.cod_spots')) }}"
               data-areas="{{ json_encode($codPoint['areas']) }}"
               data-center-lat="{{ $codPoint['center']['lat'] }}" data-center-lng="{{ $codPoint['center']['lng'] }}">
             @csrf
@@ -75,6 +76,14 @@
                 <div>
                     <label for="modalProductName" class="block text-sm font-semibold text-slate-700 mb-1">Barang</label>
                     <input type="text" id="modalProductName" disabled class="w-full bg-slate-100 border-slate-200 rounded-lg text-sm font-semibold text-emerald-800">
+                </div>
+
+                <!-- Saran tempat COD yang adil (App\Support\CodSpots lewat product.codSuggestions) -->
+                <div>
+                    <p class="block text-sm font-semibold text-slate-700 mb-1">Saran tempat ketemuan</p>
+                    <p id="meetingTooFar" class="hidden mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700" role="alert"></p>
+                    <div id="meetingSuggestions" class="space-y-1.5" role="group" aria-label="Saran tempat ketemuan"></div>
+                    <p id="suggestionStatus" class="mt-1.5 text-xs text-slate-500" aria-live="polite"></p>
                 </div>
 
                 <div>
@@ -108,7 +117,7 @@
                     <label for="waktu_cod" class="block text-sm font-semibold text-slate-700 mb-1">Kapan?</label>
                     <input type="datetime-local" id="waktu_cod" name="waktu_cod" required class="{{ $input }}">
                 </div>
-                <button type="button" onclick="goToBookingStep(2)" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition active:scale-[0.98] motion-reduce:transform-none">
+                <button type="button" id="btnToSummary" onclick="goToBookingStep(2)" class="w-full disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition active:scale-[0.98] motion-reduce:transform-none">
                     Lanjut ke ringkasan
                 </button>
             </div>
@@ -181,8 +190,11 @@
     const meeting = (function () {
         const form = document.getElementById('bookingForm');
         const areas = JSON.parse(form.dataset.areas || '[]');
-        const maxKm = Number(form.dataset.maxKm);
+        const maxEach = Number(form.dataset.maxEachKm);
+        const snapKm = Number(form.dataset.snapKm);
+        const spots = JSON.parse(form.dataset.spots || '[]');
         const fairKm = Number(form.dataset.fairKm);
+        const TOO_FAR = 'Jarak kalian terlalu jauh untuk COD, gunakan pengiriman';
         const center = [Number(form.dataset.centerLat), Number(form.dataset.centerLng)];
         const el = id => document.getElementById(id);
         const fields = { lat: el('meeting_latitude'), lng: el('meeting_longitude'), buyerLat: el('buyer_latitude'), buyerLng: el('buyer_longitude') };
@@ -191,6 +203,12 @@
         let buyer = null;       // {lat, lng} dari "Gunakan lokasi saya"; diingat selama halaman terbuka
         let point = null;       // {lat, lng} titik ketemuan
         let map = null, pin = null, sellerMarker = null, buyerMarker = null;
+        let suggestUrl = null;  // endpoint saran untuk barang yang sedang dibuka
+        let requestSeq = 0;     // jawaban saran yang lebih lama dari permintaan terakhir diabaikan
+        let touched = false;    // pembeli sudah memilih/menggeser sendiri: saran baru tidak memindahkan pin lagi
+        let autoNote = '';      // keterangan yang diisi otomatis dari nama tempat (boleh ditimpa saran berikutnya)
+        let selectedName = null;
+        let geoAsked = false, geoDenied = false;
 
         // Haversine, jari-jari bumi 6371 km (sama dengan App\Support\GeoPoint)
         function distanceKm(a, b) {
@@ -220,13 +238,22 @@
             return parts.join(' · ');
         }
 
-        // Pesan error untuk titik saat ini, atau '' kalau boleh dipakai
+        // Jarak langsung pembeli-penjual lebih dari 2 x max_each_km: tidak ada titik yang adil (sama dengan CodSpots)
+        function tooFar() {
+            return !!(seller && buyer && round1(distanceKm(buyer, seller)) > 2 * maxEach);
+        }
+
+        // Pesan error untuk titik saat ini, atau '' kalau boleh dipakai (sama dengan CodSpots::violation)
         function problem() {
+            if (tooFar()) return TOO_FAR + '.';
             if (!point) return 'Pasang pin titik ketemuan di peta dulu.';
             if (!inBatam(point)) return 'Titik ketemuan harus berada di wilayah Batam.';
             const d = distances();
-            if (d.seller !== null && round1(d.seller) > maxKm) {
-                return 'Titik ketemuan terlalu jauh dari lokasi acuan penjual (' + fmt(d.seller) + ' km). Maksimal ' + maxKm + ' km.';
+            if (d.seller !== null && round1(d.seller) > maxEach) {
+                return 'Titik ketemuan terlalu jauh dari lokasi acuan penjual (' + fmt(d.seller) + ' km). Maksimal ' + maxEach + ' km untuk masing-masing pihak.';
+            }
+            if (d.buyer !== null && round1(d.buyer) > maxEach) {
+                return 'Titik ketemuan terlalu jauh dari lokasimu (' + fmt(d.buyer) + ' km). Maksimal ' + maxEach + ' km untuk masing-masing pihak.';
             }
             return '';
         }
@@ -245,18 +272,36 @@
                 ? '⚠️ Jaraknya belum adil: selisih ' + fmt(gap) + ' km. Coba tombol "Titik tengah" supaya sama-sama dekat.'
                 : '';
 
-            const message = point ? problem() : '';
+            // Terlalu jauh untuk COD: tampilkan pesan besar, sembunyikan saran, dan jangan lanjut ke ringkasan
+            const far = tooFar();
+            el('meetingTooFar').textContent = far
+                ? '🚚 ' + TOO_FAR + '. Jarak langsung kamu ke penjual ' + fmt(distanceKm(buyer, seller)) + ' km (maks. ' + (2 * maxEach) + ' km untuk COD).'
+                : '';
+            el('meetingTooFar').classList.toggle('hidden', !far);
+            el('meetingSuggestions').classList.toggle('hidden', far);
+            el('btnToSummary').disabled = far;
+
+            const message = point && !far ? problem() : '';
             el('meetingError').textContent = message;
             el('meetingError').classList.toggle('hidden', message === '');
 
-            el('btnMidpoint').disabled = !(seller && buyer);
+            el('meetingSuggestions').querySelectorAll('[data-spot-name]').forEach(card => {
+                const active = card.dataset.spotName === selectedName;
+                card.setAttribute('aria-pressed', active ? 'true' : 'false');
+                card.classList.toggle('border-emerald-600', active);
+                card.classList.toggle('bg-emerald-50', active);
+                card.classList.toggle('border-slate-200', !active);
+            });
+
+            el('btnMidpoint').disabled = !(seller && buyer) || far;
             el('btnSellerPoint').disabled = !seller;
             el('meetingLegendSeller').classList.toggle('hidden', !seller);
             el('meetingLegendBuyer').classList.toggle('hidden', !buyer);
         }
 
-        function setPoint(lat, lng, pan) {
+        function setPoint(lat, lng, pan, name) {
             point = { lat: lat, lng: lng };
+            selectedName = name || null;
             fields.lat.value = lat.toFixed(7);
             fields.lng.value = lng.toFixed(7);
             if (pin) {
@@ -292,15 +337,123 @@
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
             }).addTo(map);
             pin = L.marker(center, { draggable: true, autoPan: true, keyboard: true, title: 'Titik ketemuan' }).addTo(map);
-            pin.on('dragend', () => { const p = pin.getLatLng(); setPoint(p.lat, p.lng, false); });
-            map.on('click', e => setPoint(e.latlng.lat, e.latlng.lng, false));
+            pin.on('dragend', () => { touched = true; const p = pin.getLatLng(); setPoint(p.lat, p.lng, false); });
+            map.on('click', e => { touched = true; setPoint(e.latlng.lat, e.latlng.lng, false); });
+        }
+
+        // Pilih tempat: pasang pin, dan isi keterangan dengan namanya kalau keterangan masih kosong/otomatis
+        function choose(spot) {
+            setPoint(spot.lat, spot.lng, true, spot.name);
+            const note = el('lokasi_cod');
+            if (note.value.trim() === '' || note.value === autoNote) {
+                note.value = [...spot.name].slice(0, note.maxLength).join('');
+                autoNote = note.value;
+                updateLokasiCodCounter();
+            }
+        }
+
+        function cardText(s) {
+            const parts = [];
+            if (s.seller_km !== null) parts.push('Penjual ' + s.seller_km.toFixed(1) + ' km');
+            if (s.buyer_km !== null) parts.push('Kamu ' + s.buyer_km.toFixed(1) + ' km');
+            return parts.join(' · ') || 'Dekat pusat Batam';
+        }
+
+        function showSuggestions(data) {
+            const list = el('meetingSuggestions');
+            list.replaceChildren();
+            data.suggestions.forEach((s, i) => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.dataset.spotName = s.name;
+                card.className = 'w-full text-left rounded-lg border-2 border-slate-200 px-3 py-2 hover:border-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition';
+                const title = document.createElement('span');
+                title.className = 'block text-sm font-semibold text-slate-900';
+                title.textContent = (i === 0 && data.mode === 'fair' ? '⭐ ' : '') + s.name;
+                const info = document.createElement('span');
+                info.className = 'block text-xs text-slate-600 tabular-nums';
+                info.textContent = cardText(s) + (s.diff_km !== null ? ' · selisih ' + s.diff_km.toFixed(1) + ' km' : '');
+                card.append(title, info);
+                card.addEventListener('click', () => { touched = true; choose(s); });
+                list.append(card);
+            });
+
+            const status = {
+                fair: data.suggestions.length
+                    ? 'Diurutkan dari yang paling dekat untuk pihak yang terjauh, lalu selisih jarak terkecil (maks. ' + maxEach + ' km untuk masing-masing).'
+                    : 'Tidak ada tempat populer dalam ' + maxEach + ' km dari kalian berdua. Geser pin di peta sendiri.',
+                seller: (data.message || '') + (geoDenied ? ' Izinkan akses lokasi di browser untuk saran yang lebih adil.' : ''),
+                center: 'Penjual belum memasang lokasi acuan, jadi saran diurutkan dari pusat Batam.',
+            }[data.mode];
+            el('suggestionStatus').textContent = data.too_far ? '' : status;
+
+            // Saran teratas langsung dipakai, selama pembeli belum memilih sendiri
+            if (!touched && !data.too_far && data.suggestions.length) choose(data.suggestions[0]);
+            render();
+        }
+
+        function loadSuggestions() {
+            if (!suggestUrl) return;
+            const seq = ++requestSeq;
+            const url = new URL(suggestUrl, window.location.href);
+            if (buyer) {
+                url.searchParams.set('lat', buyer.lat.toFixed(7));
+                url.searchParams.set('lng', buyer.lng.toFixed(7));
+            }
+            el('suggestionStatus').textContent = 'Mencari saran tempat…';
+            fetch(url, { headers: { Accept: 'application/json' } })
+                .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                .then(data => { if (seq === requestSeq) showSuggestions(data); })
+                .catch(() => {
+                    if (seq === requestSeq) el('suggestionStatus').textContent = 'Saran tempat gagal dimuat. Geser pin di peta secara manual.';
+                });
+        }
+
+        // Minta lokasi pembeli. moveTo: tombol "Gunakan lokasi saya" juga memindahkan pin ke lokasi pembeli
+        function locateBuyer(moveTo) {
+            if (!navigator.geolocation) {
+                geoDenied = true;
+                if (moveTo) {
+                    el('meetingError').textContent = 'Browser ini tidak mendukung deteksi lokasi. Pilih saran atau geser pin secara manual.';
+                    el('meetingError').classList.remove('hidden');
+                }
+                return;
+            }
+            const button = el('btnUseMyLocation');
+            button.disabled = true;
+            navigator.geolocation.getCurrentPosition(pos => {
+                button.disabled = false;
+                geoDenied = false;
+                setBuyer(pos.coords.latitude, pos.coords.longitude);
+                if (moveTo) { touched = true; setPoint(pos.coords.latitude, pos.coords.longitude, true); }
+                loadSuggestions();
+            }, err => {
+                button.disabled = false;
+                geoDenied = true;
+                render();
+                loadSuggestions();
+                if (!moveTo) return; // permintaan otomatis yang ditolak: cukup lanjut dengan saran dari lokasi penjual
+                const messages = {
+                    1: 'Izin lokasi ditolak. Izinkan akses lokasi di browser, atau pilih saran/geser pin secara manual.',
+                    2: 'Lokasimu tidak bisa ditemukan. Pilih saran atau geser pin secara manual.',
+                    3: 'Pencarian lokasi terlalu lama. Coba lagi, atau pilih saran/geser pin secara manual.',
+                };
+                el('meetingError').textContent = messages[err.code] || 'Lokasimu tidak bisa dideteksi. Pilih saran atau geser pin secara manual.';
+                el('meetingError').classList.remove('hidden');
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
         }
 
         // Dipanggil setiap popup dibuka untuk barang tertentu
         function reset(button) {
             const lat = parseFloat(button.dataset.sellerLat), lng = parseFloat(button.dataset.sellerLng);
             seller = Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat, lng: lng, label: button.dataset.sellerLabel || '' } : null;
+            suggestUrl = button.dataset.suggestUrl || null;
             point = null;
+            touched = false;
+            autoNote = '';
+            selectedName = null;
+            el('meetingSuggestions').replaceChildren();
+            el('suggestionStatus').textContent = '';
             fields.lat.value = fields.lng.value = '';
             // form.reset() mengosongkan lokasi pembeli; isi lagi dari lokasi yang sudah dideteksi
             if (buyer) { fields.buyerLat.value = buyer.lat.toFixed(7); fields.buyerLng.value = buyer.lng.toFixed(7); }
@@ -322,41 +475,43 @@
             if (seller) setPoint(seller.lat, seller.lng, false); else render();
 
             if (!map) {
-                el('meetingError').textContent = 'Peta gagal dimuat. Pakai tombol di bawah peta, atau muat ulang halaman.';
+                el('meetingError').textContent = 'Peta gagal dimuat. Pilih salah satu saran tempat, atau muat ulang halaman.';
                 el('meetingError').classList.remove('hidden');
+            }
+
+            // Saran dimuat dulu (dari lokasi penjual, atau lokasi pembeli yang sudah diketahui), lalu lokasi
+            // pembeli diminta otomatis sekali per halaman; kalau diizinkan, saran dihitung ulang dengan adil.
+            loadSuggestions();
+            if (!buyer && !geoAsked) {
+                geoAsked = true;
+                locateBuyer(false);
             }
         }
 
-        el('btnSellerPoint').addEventListener('click', () => seller && setPoint(seller.lat, seller.lng, true));
+        el('btnSellerPoint').addEventListener('click', () => {
+            if (!seller) return;
+            touched = true;
+            setPoint(seller.lat, seller.lng, true);
+        });
         el('btnMidpoint').addEventListener('click', () => {
+            if (!(seller && buyer)) return;
+            touched = true;
             // Rata-rata koordinat: cukup akurat untuk jarak beberapa km di Batam
-            if (seller && buyer) setPoint((seller.lat + buyer.lat) / 2, (seller.lng + buyer.lng) / 2, true);
-        });
-        el('btnUseMyLocation').addEventListener('click', function () {
-            const button = this;
-            if (!navigator.geolocation) {
-                el('meetingError').textContent = 'Browser ini tidak mendukung deteksi lokasi. Geser pin secara manual.';
-                el('meetingError').classList.remove('hidden');
-                return;
+            const mid = { lat: (seller.lat + buyer.lat) / 2, lng: (seller.lng + buyer.lng) / 2 };
+            // Geser ke tempat populer terdekat dalam radius midpoint_snap_km (lebih mudah dicari daripada titik acak)
+            const nearest = spots
+                .map(s => ({ spot: s, km: distanceKm(mid, s) }))
+                .filter(x => x.km <= snapKm)
+                .sort((a, b) => a.km - b.km)[0];
+            if (nearest) {
+                choose(nearest.spot);
+                el('suggestionStatus').textContent = 'Titik tengah digeser ke ' + nearest.spot.name + ' (' + fmt(nearest.km) + ' km dari titik tengah).';
+            } else {
+                setPoint(mid.lat, mid.lng, true);
+                el('suggestionStatus').textContent = 'Tidak ada tempat populer dalam ' + snapKm + ' km dari titik tengah. Cek lagi tempatnya di peta, ya.';
             }
-            button.disabled = true;
-            el('meetingDistance').textContent = 'Mencari lokasimu…';
-            navigator.geolocation.getCurrentPosition(pos => {
-                button.disabled = false;
-                setBuyer(pos.coords.latitude, pos.coords.longitude);
-                setPoint(pos.coords.latitude, pos.coords.longitude, true);
-            }, err => {
-                button.disabled = false;
-                render();
-                const messages = {
-                    1: 'Izin lokasi ditolak. Izinkan akses lokasi di browser, atau geser pin secara manual.',
-                    2: 'Lokasimu tidak bisa ditemukan. Geser pin secara manual.',
-                    3: 'Pencarian lokasi terlalu lama. Coba lagi atau geser pin secara manual.',
-                };
-                el('meetingError').textContent = messages[err.code] || 'Lokasimu tidak bisa dideteksi. Geser pin secara manual.';
-                el('meetingError').classList.remove('hidden');
-            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
         });
+        el('btnUseMyLocation').addEventListener('click', () => locateBuyer(true));
 
         // Gambar ulang peta statis ringkasan (x-cod-point-map) ke titik ketemuan
         function drawStaticMap(root, p, label) {
