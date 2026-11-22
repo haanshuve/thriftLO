@@ -66,6 +66,53 @@ class Product extends Model
         return $this->hasVideoProof() ? asset('storage/' . $this->video_proof_path) : null;
     }
 
+    // Jumlah foto per produk; foto pertama (urutan 0) jadi foto utama di katalog
+    public const MAX_IMAGES = 5;
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('urutan')->orderBy('id');
+    }
+
+    // Path di disk public, atau URL penuh untuk data lama/seed yang menyimpan link
+    public static function publicImageUrl(?string $path): string
+    {
+        return filter_var($path, FILTER_VALIDATE_URL) ? $path : asset('storage/' . $path);
+    }
+
+    /**
+     * URL semua foto galeri, foto utama di depan. Produk lama (sebelum multi-foto) belum punya
+     * baris product_images, jadi galerinya cukup satu foto dari kolom image_url.
+     *
+     * @return list<string>
+     */
+    public function galleryUrls(): array
+    {
+        if ($this->images->isNotEmpty()) {
+            return $this->images->map(fn (ProductImage $image) => $image->url())->all();
+        }
+
+        $legacy = $this->image_url ?? $this->image_path;
+
+        return $legacy ? [self::publicImageUrl($legacy)] : [];
+    }
+
+    /**
+     * Semua file foto milik produk ini di disk public (galeri + foto utama lama), untuk dibersihkan
+     * saat foto diganti atau produk dihapus. URL eksternal tidak ikut karena bukan file kita.
+     *
+     * @return list<string>
+     */
+    public function storedImagePaths(): array
+    {
+        return $this->images()->pluck('path')
+            ->push($this->image_url)
+            ->filter(fn ($path) => $path && !filter_var($path, FILTER_VALIDATE_URL))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function orders()
     {
         return $this->hasMany(Order::class);

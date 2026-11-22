@@ -37,7 +37,7 @@ class BrandTest extends TestCase
             'kategori'    => 'Sepatu',
             'harga'       => 250000,
             'grade'       => config('thriftlo.grades')[0],
-            'image'       => UploadedFile::fake()->image('sepatu.jpg'),
+            'images'      => [UploadedFile::fake()->image('sepatu.jpg')],
             'video_proof' => UploadedFile::fake()->create('sepatu.mp4', 1024, 'video/mp4'),
         ], $overrides);
     }
@@ -121,7 +121,7 @@ class BrandTest extends TestCase
         $this->assertNull($product->brandName());
 
         // Produk lama tanpa merek tetap bisa diedit tanpa mengisi merek
-        $this->actingAs($this->seller)->put(route('product.update', $product->id), $this->payload(['nama_barang' => 'Judul Baru', 'image' => null, 'video_proof' => null]))
+        $this->actingAs($this->seller)->put(route('product.update', $product->id), $this->payload(['nama_barang' => 'Judul Baru', 'images' => null, 'video_proof' => null]))
             ->assertSessionHasNoErrors();
         $this->assertSame('Judul Baru', $product->fresh()->title);
     }
@@ -133,7 +133,7 @@ class BrandTest extends TestCase
         $vans->update(['is_active' => false]);
 
         $this->actingAs($this->seller)->get(route('product.edit', $product->id))->assertOk()->assertSee('Vans');
-        $this->actingAs($this->seller)->put(route('product.update', $product->id), $this->payload(['brand_id' => $vans->id, 'image' => null, 'video_proof' => null]))
+        $this->actingAs($this->seller)->put(route('product.update', $product->id), $this->payload(['brand_id' => $vans->id, 'images' => null, 'video_proof' => null]))
             ->assertSessionHasNoErrors();
         $this->assertSame($vans->id, $product->fresh()->brand_id);
     }

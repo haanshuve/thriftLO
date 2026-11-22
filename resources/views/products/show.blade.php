@@ -2,9 +2,9 @@
 
     @php
         $seller = $product->user;
-        $img = filter_var($product->image_url ?? $product->image_path, FILTER_VALIDATE_URL)
-            ? ($product->image_url ?? $product->image_path)
-            : asset('storage/' . ($product->image_url ?? $product->image_path));
+        // Produk lama tanpa galeri tetap tampil dengan satu foto dari image_url
+        $gallery = $product->galleryUrls();
+        $img = $gallery[0] ?? \App\Models\Product::publicImageUrl($product->image_url ?? $product->image_path);
         $status = strtolower($product->status);
         $isTakenDown = $product->isTakenDown();
         $isAvailable = $status === 'available' && !$isTakenDown;
@@ -36,15 +36,54 @@
         @endif
 
         <div class="grid md:grid-cols-2 gap-5 md:gap-8 items-start">
-            <!-- Foto -->
-            <div class="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
-                <img src="{{ $img }}" alt="{{ $product->title }}" class="w-full h-full object-cover {{ $isAvailable ? '' : 'grayscale-[40%]' }}"
-                     onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80'">
-                @unless($isAvailable)
-                    <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-sm font-semibold text-center py-2">
-                        {{ $isTakenDown ? 'Diturunkan admin' : ($status === 'booked' ? 'Sedang dalam transaksi' : 'Sudah terjual') }}
-                    </span>
-                @endunless
+            <!-- Galeri foto -->
+            <div class="space-y-2" data-gallery>
+                <div class="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200">
+                    <img id="galleryMain" src="{{ $img }}" alt="{{ $product->title }}" class="w-full h-full object-cover {{ $isAvailable ? '' : 'grayscale-[40%]' }}"
+                         onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80'">
+                    @if(count($gallery) > 1)
+                        <span id="galleryCounter" class="absolute top-2 right-2 rounded-full bg-slate-900/70 px-2 py-0.5 text-xs font-semibold text-white tabular-nums">1/{{ count($gallery) }}</span>
+                    @endif
+                    @unless($isAvailable)
+                        <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-sm font-semibold text-center py-2">
+                            {{ $isTakenDown ? 'Diturunkan admin' : ($status === 'booked' ? 'Sedang dalam transaksi' : 'Sudah terjual') }}
+                        </span>
+                    @endunless
+                </div>
+
+                @if(count($gallery) > 1)
+                    <div class="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Pilih foto produk">
+                        @foreach($gallery as $i => $url)
+                            <button type="button" data-gallery-thumb data-src="{{ $url }}" data-index="{{ $i + 1 }}"
+                                    aria-label="Lihat foto {{ $i + 1 }} dari {{ count($gallery) }}" aria-pressed="{{ $i === 0 ? 'true' : 'false' }}"
+                                    class="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 {{ $i === 0 ? 'border-emerald-600' : 'border-transparent opacity-70 hover:opacity-100' }} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                                <img src="{{ $url }}" alt="" loading="lazy" class="w-full h-full object-cover">
+                            </button>
+                        @endforeach
+                    </div>
+                    <script>
+                        (function () {
+                            const main = document.getElementById('galleryMain');
+                            const counter = document.getElementById('galleryCounter');
+                            const thumbs = document.querySelectorAll('[data-gallery-thumb]');
+                            const total = thumbs.length;
+
+                            thumbs.forEach(function (thumb) {
+                                thumb.addEventListener('click', function () {
+                                    main.src = thumb.dataset.src;
+                                    counter.textContent = thumb.dataset.index + '/' + total;
+                                    thumbs.forEach(function (t) {
+                                        const active = t === thumb;
+                                        t.setAttribute('aria-pressed', active ? 'true' : 'false');
+                                        t.classList.toggle('border-emerald-600', active);
+                                        t.classList.toggle('border-transparent', !active);
+                                        t.classList.toggle('opacity-70', !active);
+                                    });
+                                });
+                            });
+                        })();
+                    </script>
+                @endif
             </div>
 
             <!-- Info & aksi -->

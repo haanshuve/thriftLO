@@ -36,7 +36,7 @@ class VideoProofTest extends TestCase
             'kategori' => 'Fashion',
             'harga' => 850000,
             'grade' => config('thriftlo.grades')[0],
-            'image' => UploadedFile::fake()->image('kamera.jpg'),
+            'images' => [UploadedFile::fake()->image('kamera.jpg')],
             'video_proof' => UploadedFile::fake()->create('kamera.mp4', 10 * 1024, 'video/mp4'),
         ], $overrides);
     }
@@ -147,7 +147,7 @@ class VideoProofTest extends TestCase
         $product = $this->product($this->seller, 'product-videos/lama.mp4');
 
         $this->actingAs($this->seller)
-            ->put(route('product.update', $product->id), $this->payload(['image' => null, 'video_proof' => null]))
+            ->put(route('product.update', $product->id), $this->payload(['images' => null, 'video_proof' => null]))
             ->assertSessionHasNoErrors();
 
         $this->assertSame('product-videos/lama.mp4', $product->fresh()->video_proof_path);
@@ -160,7 +160,7 @@ class VideoProofTest extends TestCase
         $product = $this->product($this->seller, 'product-videos/lama.mp4');
 
         $this->actingAs($this->seller)
-            ->put(route('product.update', $product->id), $this->payload(['image' => null]))
+            ->put(route('product.update', $product->id), $this->payload(['images' => null]))
             ->assertSessionHasNoErrors();
 
         $newPath = $product->fresh()->video_proof_path;
@@ -174,7 +174,7 @@ class VideoProofTest extends TestCase
         $product = $this->product($this->seller, null, 'https://youtube.com/watch?v=lama');
 
         $this->actingAs($this->seller)
-            ->put(route('product.update', $product->id), $this->payload(['nama_barang' => 'Judul Baru', 'image' => null, 'video_proof' => null]))
+            ->put(route('product.update', $product->id), $this->payload(['nama_barang' => 'Judul Baru', 'images' => null, 'video_proof' => null]))
             ->assertSessionHasNoErrors();
 
         $product->refresh();

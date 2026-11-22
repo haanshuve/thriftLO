@@ -189,20 +189,21 @@ class ProductController extends Controller
                     return false;
                 }
 
-                $paths = [
-                    $request->file('image')->store('products', 'public'),
-                    $request->file('video_proof')->store('product-videos', 'public'),
-                ];
+                $imagePaths = $this->storeImages($request);
+                $videoPath = $request->file('video_proof')->store('product-videos', 'public');
+                $paths = [...$imagePaths, $videoPath];
 
-                Product::create([
+                $product = Product::create([
                     'user_id'          => $seller->id,
-                    'image_url'        => $paths[0],
-                    'image_path'       => $paths[0],
-                    'video_proof_path' => $paths[1],
+                    'image_url'        => $imagePaths[0],
+                    'image_path'       => $imagePaths[0],
+                    'video_proof_path' => $videoPath,
                     'status'           => 'Available',
                     'idempotency_key'  => $formKey,
                     ...$this->productAttributes($request),
                 ]);
+
+                $this->syncImages($product, $imagePaths);
 
                 return true;
             });
@@ -222,6 +223,24 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Barang preloved berhasil ditayangkan!');
     }
 
+    /** @return list<string> path foto di disk public, sesuai urutan unggah */
+    private function storeImages(Request $request): array
+    {
+        return collect($request->file('images', []))
+            ->map(fn ($file) => $file->store('products', 'public'))
+            ->values()
+            ->all();
+    }
+
+    /** @param list<string> $paths urutan 0 = foto utama */
+    private function syncImages(Product $product, array $paths): void
+    {
+        $product->images()->delete();
+        $product->images()->createMany(
+            collect($paths)->map(fn ($path, $i) => ['path' => $path, 'urutan' => $i])->all()
+        );
+    }
+
     private function productAlreadyCreated(string $formKey): bool
     {
         return Product::where('idempotency_key', $formKey)->where('user_id', Auth::id())->exists();
@@ -233,7 +252,7 @@ class ProductController extends Controller
         if ($product->status === 'Booked' && Booking::releaseExpiredPayments() > 0) {
             $product->refresh();
         }
-        $product->load(['user', 'brand']);
+        $product->load(['user', 'brand', 'images']);
         $isOwner = (int) Auth::id() === (int) $product->user_id;
 
         // Produk yang disembunyikan karena kuota penjual habis hanya bisa dilihat pemiliknya
@@ -252,7 +271,7 @@ class ProductController extends Controller
 
     public function edit($id)
     {
-        $product = Product::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+        $product = Product::with('images')->where('id', $id)->where('user_id', Auth::id())->firstOrFail();
 
         return view('products.edit', ['product' => $product, 'sellerInBatam' => Auth::user()->isInBatam()]);
     }
@@ -266,13 +285,13 @@ class ProductController extends Controller
 
         $attributes = $this->productAttributes($request);
 
-        if ($request->hasFile('image')) {
-            $oldImage = $product->image_url;
-            $attributes['image_url'] = $attributes['image_path'] = $request->file('image')->store('products', 'public');
-
-            if ($oldImage && !filter_var($oldImage, FILTER_VALIDATE_URL)) {
-                Storage::disk('public')->delete($oldImage);
-            }
+        // Foto baru menggantikan seluruh galeri lama; kalau tidak ada foto yang diunggah, galeri tetap
+        $newImages = [];
+        $oldImages = [];
+        if ($request->hasFile('images')) {
+            $oldImages = $product->storedImagePaths();
+            $newImages = $this->storeImages($request);
+            $attributes['image_url'] = $attributes['image_path'] = $newImages[0];
         }
 
         $oldVideo = null;
@@ -281,11 +300,16 @@ class ProductController extends Controller
             $attributes['video_proof_path'] = $request->file('video_proof')->store('product-videos', 'public');
         }
 
-        $product->update($attributes);
+        DB::transaction(function () use ($product, $attributes, $newImages) {
+            $product->update($attributes);
 
-        if ($oldVideo) {
-            Storage::disk('public')->delete($oldVideo);
-        }
+            if ($newImages) {
+                $this->syncImages($product, $newImages);
+            }
+        });
+
+        // File lama baru dihapus setelah data tersimpan, supaya produk tidak menunjuk file yang hilang
+        Storage::disk('public')->delete(array_values(array_filter([...$oldImages, $oldVideo])));
 
         return redirect()->route('dashboard')->with('success', 'Barang "' . $product->title . '" berhasil diperbarui.');
     }
@@ -314,8 +338,9 @@ class ProductController extends Controller
             'brand_other'     => ['nullable', 'required_if:brand_id,' . self::OTHER_BRAND, 'string', 'max:60'],
             'harga'           => 'required|numeric|min:0',
             'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
-            // Foto kamera HP umumnya 3-6MB, jadi batasnya 5MB
-            'image'           => [$isNew ? 'required' : 'nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            // 1-5 foto; saat edit boleh dikosongkan (galeri lama dipertahankan)
+            'images'          => [$isNew ? 'required' : 'nullable', 'array', 'min:1', 'max:' . Product::MAX_IMAGES],
+            'images.*'        => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
             // Video Proof wajib untuk barang baru; mov = rekaman kamera iPhone
             'video_proof'     => [$isNew ? 'required' : 'nullable', 'file', 'mimes:mp4,mov,webm', 'max:' . ($videoMaxMb * 1024)],
             'deskripsi'       => 'nullable|string|max:2000',
@@ -333,10 +358,16 @@ class ProductController extends Controller
             'harga.required'       => 'Harga wajib diisi.',
             'harga.numeric'        => 'Harga harus berupa angka.',
             'harga.min'            => 'Harga tidak boleh negatif.',
-            'image.required'       => 'Foto produk wajib diunggah.',
-            'image.image'          => 'Foto produk harus berupa gambar (JPG, PNG, atau WEBP).',
-            'image.mimes'          => 'Foto produk harus berformat JPG, PNG, atau WEBP.',
-            'image.max'            => 'Ukuran foto produk maksimal 5MB.',
+            'images.required'      => 'Unggah minimal 1 foto produk.',
+            'images.array'         => 'Foto produk gagal diunggah. Coba pilih ulang fotonya.',
+            'images.min'           => 'Unggah minimal 1 foto produk.',
+            'images.max'           => 'Maksimal ' . Product::MAX_IMAGES . ' foto per produk.',
+            'images.*.required'    => 'Foto produk gagal diunggah. Coba pilih ulang fotonya.',
+            'images.*.file'        => 'Foto produk gagal diunggah. Coba pilih ulang fotonya.',
+            'images.*.uploaded'    => 'Foto produk gagal diunggah. Pastikan tiap foto tidak lebih dari 2MB.',
+            'images.*.image'       => 'Foto produk harus berupa gambar (JPG, PNG, atau WEBP).',
+            'images.*.mimes'       => 'Foto produk harus berformat JPG, PNG, atau WEBP.',
+            'images.*.max'         => 'Ukuran tiap foto produk maksimal 2MB.',
             'video_proof.required' => 'Video Proof wajib diunggah. Rekam video singkat yang menunjukkan kondisi asli barang.',
             'video_proof.file'     => 'Video Proof gagal diunggah. Coba pilih ulang videonya.',
             // File yang melebihi batas upload server dibuang PHP, jadi muncul sebagai gagal unggah, bukan "max"
@@ -612,6 +643,9 @@ class ProductController extends Controller
         // Booking ikut terhapus (cascade), jadi barang yang masih di-booking atau ditunggu pembayaran
         // QRIS-nya tidak boleh dihapus: settlement yang datang sesudahnya tidak akan punya booking lagi.
         // Baris produk dikunci seperti di bookProduct supaya booking baru tidak masuk di sela pengecekan.
+        // Dikumpulkan sebelum dihapus: baris product_images ikut terhapus (cascade)
+        $imagePaths = $product->storedImagePaths();
+
         $deleted = DB::transaction(function () use ($product) {
             Product::whereKey($product->id)->lockForUpdate()->first();
 
@@ -628,9 +662,7 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'Barang ini sedang di-booking pembeli, jadi belum bisa dihapus. Batalkan booking-nya dulu dari dashboard, atau tunggu pembayaran QRIS-nya kedaluwarsa.');
         }
 
-        if ($product->image_url && !filter_var($product->image_url, FILTER_VALIDATE_URL)) {
-            Storage::disk('public')->delete($product->image_url);
-        }
+        Storage::disk('public')->delete($imagePaths);
 
         if ($product->video_proof_path) {
             Storage::disk('public')->delete($product->video_proof_path);

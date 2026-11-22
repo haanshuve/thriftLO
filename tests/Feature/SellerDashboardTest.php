@@ -34,7 +34,7 @@ class SellerDashboardTest extends TestCase
             'kategori' => 'Sepatu',
             'harga' => 650000,
             'grade' => 'Grade A (Like New)',
-            'image' => UploadedFile::fake()->image('boots.jpg')->size(3000), // foto HP 3MB
+            'images' => [UploadedFile::fake()->image('boots.jpg')->size(1900)], // foto HP mendekati batas 2MB
             'video_proof' => UploadedFile::fake()->create('boots.mp4', 20000, 'video/mp4'),
             'deskripsi' => 'Ukuran 42',
         ], $overrides);
@@ -120,16 +120,16 @@ class SellerDashboardTest extends TestCase
         $this->actingAs($seller)->from('/dashboard')
             ->post('/seller/product/store', $this->validProductPayload([
                 'kategori' => 'Kategori Ngawur',
-                'image' => UploadedFile::fake()->image('besar.jpg')->size(6000),
+                'images' => [UploadedFile::fake()->image('besar.jpg')->size(3000)],
             ]))
             ->assertRedirect('/dashboard')
-            ->assertSessionHasErrorsIn('product', ['kategori', 'image']);
+            ->assertSessionHasErrorsIn('product', ['kategori', 'images.0']);
 
         $this->assertSame(0, Product::count());
 
         $this->actingAs($seller)->get('/dashboard')->assertOk()
             ->assertSee('Barang belum tersimpan')
-            ->assertSee('Ukuran foto produk maksimal 5MB.')
+            ->assertSee('Ukuran tiap foto produk maksimal 2MB.')
             ->assertSee('value="Sepatu Boots Kulit"', false);
     }
 

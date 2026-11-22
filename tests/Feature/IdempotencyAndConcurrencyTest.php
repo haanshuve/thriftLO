@@ -269,7 +269,7 @@ class IdempotencyAndConcurrencyTest extends TestCase
         return $this->actingAs($this->seller)->post(route('product.store'), [
             'idempotency_key' => $key, 'nama_barang' => $title, 'mode_jual' => 'ecer', 'kategori' => 'Fashion',
             'harga' => 75000, 'grade' => config('thriftlo.grades')[0],
-            'image' => UploadedFile::fake()->image('jaket.jpg'),
+            'images' => [UploadedFile::fake()->image('jaket.jpg')],
             'video_proof' => UploadedFile::fake()->create('jaket.mp4', 1024, 'video/mp4'),
         ]);
     }

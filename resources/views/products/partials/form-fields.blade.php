@@ -73,14 +73,80 @@
     </div>
 </div>
 
+@php
+    $maxImages = \App\Models\Product::MAX_IMAGES;
+    $currentImages = $product?->galleryUrls() ?? [];
+    $imagesError = $errors->product->first('images') ?: $errors->product->first('images.*');
+@endphp
 <div>
-    <label for="image" class="block text-sm font-semibold text-slate-700 mb-1">
-        Foto produk @if($product)<span class="font-normal text-slate-400">(kosongkan kalau tidak diganti)</span>@endif
+    <label for="images" class="block text-sm font-semibold text-slate-700 mb-1">
+        Foto produk <span class="font-normal text-slate-400">(1–{{ $maxImages }} foto{{ $product ? ', kosongkan kalau tidak diganti' : '' }})</span>
     </label>
-    <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp" @unless($product) required @endunless
+    @if($currentImages)
+        <div class="mb-2 flex gap-2 overflow-x-auto" aria-label="Foto saat ini">
+            @foreach($currentImages as $i => $url)
+                <div class="relative shrink-0">
+                    <img src="{{ $url }}" alt="Foto {{ $i + 1 }}" class="w-16 h-16 rounded-lg object-cover border border-slate-200">
+                    @if($i === 0)
+                        <span class="absolute bottom-0 inset-x-0 rounded-b-lg bg-emerald-600/90 text-[10px] font-semibold text-white text-center">Utama</span>
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    @endif
+    <input type="file" id="images" name="images[]" multiple accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+           data-max-files="{{ $maxImages }}" data-max-bytes="{{ 2 * 1024 * 1024 }}" @unless($product) required @endunless
+           aria-describedby="images_hint images_error"
            class="w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-    <p class="text-xs text-slate-400 mt-1">JPG, PNG, atau WEBP, maksimal 5MB. Foto persegi tampil paling bagus di katalog.</p>
+    <p id="images_hint" class="text-xs text-slate-400 mt-1">
+        JPG, PNG, atau WEBP, maksimal 2MB per foto. Foto pertama yang dipilih jadi foto utama di katalog.
+        @if($product) Foto baru akan menggantikan semua foto lama. @endif
+    </p>
+    <p id="images_error" class="text-xs font-semibold text-rose-600 mt-1 {{ $imagesError ? '' : 'hidden' }}" role="alert">{{ $imagesError }}</p>
 </div>
+
+<script>
+    // Cek jumlah, format, dan ukuran foto sebelum dikirim
+    (function () {
+        const input = document.getElementById('images');
+        const error = document.getElementById('images_error');
+        const allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        const maxFiles = Number(input.dataset.maxFiles);
+        const maxBytes = Number(input.dataset.maxBytes);
+
+        function check() {
+            const files = Array.from(input.files);
+            let message = '';
+            if (files.length > maxFiles) {
+                message = 'Maksimal ' + maxFiles + ' foto per produk. Kamu memilih ' + files.length + ' foto.';
+            } else {
+                for (const file of files) {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (!allowed.includes(ext)) {
+                        message = '"' + file.name + '" bukan JPG, PNG, atau WEBP.';
+                        break;
+                    }
+                    if (file.size > maxBytes) {
+                        message = '"' + file.name + '" berukuran ' + (file.size / 1048576).toFixed(1) + 'MB, maksimal 2MB per foto.';
+                        break;
+                    }
+                }
+            }
+            input.setCustomValidity(message);
+            error.textContent = message;
+            error.classList.toggle('hidden', message === '');
+            return message === '';
+        }
+
+        input.addEventListener('change', check);
+        input.form.addEventListener('submit', function (e) {
+            if (!check()) {
+                e.preventDefault();
+                input.focus();
+            }
+        });
+    })();
+</script>
 
 @php
     $videoMaxMb = (int) config('thriftlo.video_proof.max_mb');
