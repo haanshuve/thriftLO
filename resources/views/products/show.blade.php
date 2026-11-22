@@ -42,7 +42,15 @@
                     <img id="galleryMain" src="{{ $img }}" alt="{{ $product->title }}" class="w-full h-full object-cover {{ $isAvailable ? '' : 'grayscale-[40%]' }}"
                          onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80'">
                     @if(count($gallery) > 1)
-                        <span id="galleryCounter" class="absolute top-2 right-2 rounded-full bg-slate-900/70 px-2 py-0.5 text-xs font-semibold text-white tabular-nums">1/{{ count($gallery) }}</span>
+                        <span id="galleryCounter" class="absolute top-2 right-2 rounded-full bg-slate-900/70 px-2 py-0.5 text-xs font-semibold text-white tabular-nums" aria-live="polite">1/{{ count($gallery) }}</span>
+                        <button type="button" data-gallery-prev aria-label="Foto sebelumnya"
+                                class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white text-slate-800 shadow flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                        </button>
+                        <button type="button" data-gallery-next aria-label="Foto berikutnya"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white text-slate-800 shadow flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
                     @endif
                     @unless($isAvailable)
                         <span class="absolute inset-x-0 bottom-0 bg-slate-900/75 text-white text-sm font-semibold text-center py-2">
@@ -62,24 +70,48 @@
                         @endforeach
                     </div>
                     <script>
+                        // Galeri slide: panah kiri/kanan (berputar), thumbnail, tombol panah keyboard, dan geser di layar sentuh
                         (function () {
+                            const gallery = document.querySelector('[data-gallery]');
                             const main = document.getElementById('galleryMain');
                             const counter = document.getElementById('galleryCounter');
-                            const thumbs = document.querySelectorAll('[data-gallery-thumb]');
+                            const thumbs = Array.from(document.querySelectorAll('[data-gallery-thumb]'));
                             const total = thumbs.length;
+                            let current = 0;
 
-                            thumbs.forEach(function (thumb) {
-                                thumb.addEventListener('click', function () {
-                                    main.src = thumb.dataset.src;
-                                    counter.textContent = thumb.dataset.index + '/' + total;
-                                    thumbs.forEach(function (t) {
-                                        const active = t === thumb;
-                                        t.setAttribute('aria-pressed', active ? 'true' : 'false');
-                                        t.classList.toggle('border-emerald-600', active);
-                                        t.classList.toggle('border-transparent', !active);
-                                        t.classList.toggle('opacity-70', !active);
-                                    });
+                            function show(index) {
+                                current = (index + total) % total;
+                                const thumb = thumbs[current];
+                                main.src = thumb.dataset.src;
+                                counter.textContent = (current + 1) + '/' + total;
+                                thumbs.forEach(function (t, i) {
+                                    const active = i === current;
+                                    t.setAttribute('aria-pressed', active ? 'true' : 'false');
+                                    t.classList.toggle('border-emerald-600', active);
+                                    t.classList.toggle('border-transparent', !active);
+                                    t.classList.toggle('opacity-70', !active);
                                 });
+                                thumb.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                            }
+
+                            thumbs.forEach(function (thumb, i) {
+                                thumb.addEventListener('click', function () { show(i); });
+                            });
+                            gallery.querySelector('[data-gallery-prev]').addEventListener('click', function () { show(current - 1); });
+                            gallery.querySelector('[data-gallery-next]').addEventListener('click', function () { show(current + 1); });
+
+                            gallery.addEventListener('keydown', function (e) {
+                                if (e.key === 'ArrowLeft') { e.preventDefault(); show(current - 1); }
+                                if (e.key === 'ArrowRight') { e.preventDefault(); show(current + 1); }
+                            });
+
+                            let touchX = null;
+                            main.addEventListener('touchstart', function (e) { touchX = e.touches[0].clientX; }, { passive: true });
+                            main.addEventListener('touchend', function (e) {
+                                if (touchX === null) return;
+                                const dx = e.changedTouches[0].clientX - touchX;
+                                touchX = null;
+                                if (Math.abs(dx) > 40) show(current + (dx < 0 ? 1 : -1));
                             });
                         })();
                     </script>

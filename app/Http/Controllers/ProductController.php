@@ -243,6 +243,81 @@ class ProductController extends Controller
         );
     }
 
+    // Nilai hapus_foto[] untuk foto produk lama yang belum punya baris product_images
+    public const LEGACY_IMAGE_KEY = 'utama-lama';
+
+    /**
+     * Edit galeri: hapus foto yang dicentang (hapus_foto[] = id product_images), tambahkan foto baru
+     * di belakang foto yang tersisa, lalu rapikan urutan 0..n-1. Foto urutan 0 jadi foto utama.
+     * Dipanggil di dalam transaksi yang mengunci produk. File yang disimpan ditambahkan ke $newFiles
+     * supaya bisa dibersihkan kalau gagal.
+     *
+     * @param  list<string>  $newFiles
+     * @return list<string> path file foto yang dilepas, dihapus dari disk setelah transaksi selesai
+     */
+    private function updateGallery(Request $request, Product $product, array &$newFiles): array
+    {
+        $images = $product->images()->get();
+
+        // Produk lama hanya punya image_url: jadikan baris galeri dulu supaya bisa dipertahankan atau dihapus
+        $legacyId = null;
+        $legacyPath = $product->image_url ?: $product->image_path;
+        if ($images->isEmpty() && $legacyPath) {
+            $legacy = $product->images()->create(['path' => $legacyPath, 'urutan' => 0]);
+            $images = collect([$legacy]);
+            $legacyId = $legacy->id;
+        }
+
+        $removeIds = collect((array) $request->input('hapus_foto', []))
+            ->map(fn ($key) => (string) $key === self::LEGACY_IMAGE_KEY ? $legacyId : (ctype_digit((string) $key) ? (int) $key : null))
+            ->unique()
+            ->values();
+        $ownIds = $images->pluck('id');
+        if ($removeIds->contains(fn ($id) => $id === null || !$ownIds->contains($id))) {
+            throw ValidationException::withMessages(['hapus_foto' => 'Foto yang dipilih untuk dihapus tidak ditemukan. Muat ulang halaman lalu coba lagi.'])
+                ->errorBag('product');
+        }
+
+        $kept = $images->reject(fn ($image) => $removeIds->contains($image->id))->values();
+        $uploads = array_values($request->file('images', []));
+        $total = $kept->count() + count($uploads);
+        $max = Product::MAX_IMAGES;
+
+        if ($total > $max) {
+            $slots = max(0, $max - $kept->count());
+            throw ValidationException::withMessages(['images' => "Total foto maksimal {$max} per produk. Produk ini masih punya {$kept->count()} foto, jadi kamu hanya bisa menambah {$slots} foto lagi (kamu memilih " . count($uploads) . '). Hapus foto lama dulu atau pilih lebih sedikit foto.'])
+                ->errorBag('product');
+        }
+        if ($total === 0) {
+            throw ValidationException::withMessages(['images' => 'Produk harus punya minimal 1 foto. Unggah foto baru kalau ingin menghapus semua foto lama.'])
+                ->errorBag('product');
+        }
+
+        $removed = $images->filter(fn ($image) => $removeIds->contains($image->id));
+        $product->images()->whereKey($removed->pluck('id'))->delete();
+
+        // Urutan dirapikan tanpa celah: foto tersisa tetap di urutan semula, foto baru di belakangnya
+        foreach ($kept as $i => $image) {
+            if ($image->urutan !== $i) {
+                $image->update(['urutan' => $i]);
+            }
+        }
+        foreach ($uploads as $i => $file) {
+            $path = $newFiles[] = $file->store('products', 'public');
+            $kept->push($product->images()->create(['path' => $path, 'urutan' => $kept->count()]));
+        }
+
+        $mainPath = $kept->first()->path;
+        $product->forceFill(['image_url' => $mainPath, 'image_path' => $mainPath])->save();
+        $product->unsetRelation('images');
+
+        // Path eksternal (URL data seed) bukan file kita, jadi tidak ikut dihapus
+        return $removed->pluck('path')
+            ->filter(fn ($path) => $path && !filter_var($path, FILTER_VALIDATE_URL))
+            ->values()
+            ->all();
+    }
+
     private function productAlreadyCreated(string $formKey): bool
     {
         return Product::where('idempotency_key', $formKey)->where('user_id', Auth::id())->exists();
@@ -287,31 +362,30 @@ class ProductController extends Controller
 
         $attributes = $this->productAttributes($request);
 
-        // Foto baru menggantikan seluruh galeri lama; kalau tidak ada foto yang diunggah, galeri tetap
-        $newImages = [];
-        $oldImages = [];
-        if ($request->hasFile('images')) {
-            $oldImages = $product->storedImagePaths();
-            $newImages = $this->storeImages($request);
-            $attributes['image_url'] = $attributes['image_path'] = $newImages[0];
-        }
-
         $oldVideo = null;
+        $newFiles = [];
         if ($request->hasFile('video_proof')) {
             $oldVideo = $product->video_proof_path;
-            $attributes['video_proof_path'] = $request->file('video_proof')->store('product-videos', 'public');
+            $attributes['video_proof_path'] = $newFiles[] = $request->file('video_proof')->store('product-videos', 'public');
         }
 
-        DB::transaction(function () use ($product, $attributes, $newImages) {
-            $product->update($attributes);
+        $removedImages = [];
+        try {
+            DB::transaction(function () use ($request, $product, $attributes, &$newFiles, &$removedImages) {
+                // Kunci produk: dua simpan bersamaan tidak bisa sama-sama lolos batas 5 foto
+                Product::whereKey($product->id)->lockForUpdate()->first();
 
-            if ($newImages) {
-                $this->syncImages($product, $newImages);
-            }
-        });
+                $removedImages = $this->updateGallery($request, $product, $newFiles);
+                $product->update($attributes);
+            });
+        } catch (\Throwable $e) {
+            // Gagal validasi/simpan: file yang baru diunggah tidak boleh tertinggal tanpa pemilik
+            Storage::disk('public')->delete($newFiles);
+            throw $e;
+        }
 
         // File lama baru dihapus setelah data tersimpan, supaya produk tidak menunjuk file yang hilang
-        Storage::disk('public')->delete(array_values(array_filter([...$oldImages, $oldVideo])));
+        Storage::disk('public')->delete(array_values(array_filter([...$removedImages, $oldVideo])));
 
         return redirect()->route('dashboard')->with('success', 'Barang "' . $product->title . '" berhasil diperbarui.');
     }
@@ -340,9 +414,10 @@ class ProductController extends Controller
             'brand_other'     => ['nullable', 'required_if:brand_id,' . self::OTHER_BRAND, 'string', 'max:60'],
             'harga'           => 'required|numeric|min:0',
             'grade'           => ['required', Rule::in(config('thriftlo.grades'))],
-            // 1-5 foto; saat edit boleh dikosongkan (galeri lama dipertahankan)
+            // 1-5 foto; saat edit foto baru ditambahkan ke galeri lama (batas total dicek di updateGallery)
             'images'          => [$isNew ? 'required' : 'nullable', 'array', 'min:1', 'max:' . Product::MAX_IMAGES],
             'images.*'        => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'hapus_foto'      => [$isNew ? 'prohibited' : 'nullable', 'array', 'max:' . Product::MAX_IMAGES],
             // Video Proof wajib untuk barang baru; mov = rekaman kamera iPhone
             'video_proof'     => [$isNew ? 'required' : 'nullable', 'file', 'mimes:mp4,mov,webm', 'max:' . ($videoMaxMb * 1024)],
             'deskripsi'       => 'nullable|string|max:2000',
@@ -370,6 +445,8 @@ class ProductController extends Controller
             'images.*.image'       => 'Foto produk harus berupa gambar (JPG, PNG, atau WEBP).',
             'images.*.mimes'       => 'Foto produk harus berformat JPG, PNG, atau WEBP.',
             'images.*.max'         => 'Ukuran tiap foto produk maksimal 2MB.',
+            'hapus_foto.array'     => 'Pilihan foto yang dihapus tidak valid. Muat ulang halaman lalu coba lagi.',
+            'hapus_foto.max'       => 'Pilihan foto yang dihapus tidak valid. Muat ulang halaman lalu coba lagi.',
             'video_proof.required' => 'Video Proof wajib diunggah. Rekam video singkat yang menunjukkan kondisi asli barang.',
             'video_proof.file'     => 'Video Proof gagal diunggah. Coba pilih ulang videonya.',
             // File yang melebihi batas upload server dibuang PHP, jadi muncul sebagai gagal unggah, bukan "max"

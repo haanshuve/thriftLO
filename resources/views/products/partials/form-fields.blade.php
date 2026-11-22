@@ -75,50 +75,100 @@
 
 @php
     $maxImages = \App\Models\Product::MAX_IMAGES;
-    $currentImages = $product?->galleryUrls() ?? [];
-    $imagesError = $errors->product->first('images') ?: $errors->product->first('images.*');
+    // Foto yang sudah ada: kunci hapus_foto[] + url. Produk lama tanpa baris galeri memakai kunci khusus.
+    $currentImages = [];
+    if ($product) {
+        $currentImages = $product->images->isNotEmpty()
+            ? $product->images->map(fn ($image) => ['key' => (string) $image->id, 'url' => $image->url()])->all()
+            : array_map(fn ($url) => ['key' => \App\Http\Controllers\ProductController::LEGACY_IMAGE_KEY, 'url' => $url], $product->galleryUrls());
+    }
+    // Centang dipertahankan saat form dibuka ulang karena gagal validasi
+    $markedForRemoval = array_map('strval', (array) old('hapus_foto', []));
+    $keptKeys = array_values(array_filter(array_column($currentImages, 'key'), fn ($key) => !in_array($key, $markedForRemoval, true)));
+    $mainKey = $keptKeys[0] ?? null;
+    $imagesError = $errors->product->first('images') ?: ($errors->product->first('images.*') ?: $errors->product->first('hapus_foto'));
 @endphp
 <div>
-    <label for="images" class="block text-sm font-semibold text-slate-700 mb-1">
-        Foto produk <span class="font-normal text-slate-400">(1–{{ $maxImages }} foto{{ $product ? ', kosongkan kalau tidak diganti' : '' }})</span>
-    </label>
+    <div class="flex items-baseline justify-between gap-2 mb-1">
+        <label for="images" class="block text-sm font-semibold text-slate-700">
+            Foto produk <span class="font-normal text-slate-400">(1–{{ $maxImages }} foto)</span>
+        </label>
+        <p id="images_quota" class="text-xs font-semibold text-slate-500 tabular-nums" aria-live="polite">{{ count($keptKeys) }} dari {{ $maxImages }} foto</p>
+    </div>
     @if($currentImages)
-        <div class="mb-2 flex gap-2 overflow-x-auto" aria-label="Foto saat ini">
-            @foreach($currentImages as $i => $url)
-                <div class="relative shrink-0">
-                    <img src="{{ $url }}" alt="Foto {{ $i + 1 }}" class="w-16 h-16 rounded-lg object-cover border border-slate-200">
-                    @if($i === 0)
-                        <span class="absolute bottom-0 inset-x-0 rounded-b-lg bg-emerald-600/90 text-[10px] font-semibold text-white text-center">Utama</span>
-                    @endif
-                </div>
+        <ul class="mb-2 grid grid-cols-3 sm:grid-cols-5 gap-2" aria-label="Foto saat ini">
+            @foreach($currentImages as $i => $image)
+                @php $marked = in_array($image['key'], $markedForRemoval, true); @endphp
+                <li class="space-y-1" data-existing-photo>
+                    <div class="relative">
+                        <img src="{{ $image['url'] }}" alt="Foto {{ $i + 1 }}" data-photo-thumb
+                             class="w-full aspect-square rounded-lg object-cover border border-slate-200 {{ $marked ? 'opacity-40 grayscale' : '' }}">
+                        <span data-main-badge class="absolute bottom-0 inset-x-0 rounded-b-lg bg-emerald-600/90 text-[10px] font-semibold text-white text-center {{ $image['key'] === $mainKey ? '' : 'hidden' }}">Utama</span>
+                    </div>
+                    <label class="flex items-center justify-center gap-1 rounded-md border border-slate-200 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer">
+                        <input type="checkbox" name="hapus_foto[]" value="{{ $image['key'] }}" data-remove-photo @checked($marked)
+                               class="rounded border-slate-300 text-rose-600 focus:ring-rose-500">
+                        Hapus<span class="sr-only"> foto {{ $i + 1 }}</span>
+                    </label>
+                </li>
             @endforeach
-        </div>
+        </ul>
     @endif
     <input type="file" id="images" name="images[]" multiple accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
            data-max-files="{{ $maxImages }}" data-max-bytes="{{ 2 * 1024 * 1024 }}" @unless($product) required @endunless
-           aria-describedby="images_hint images_error"
+           aria-describedby="images_hint images_quota images_error"
            class="w-full text-sm text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
     <p id="images_hint" class="text-xs text-slate-400 mt-1">
-        JPG, PNG, atau WEBP, maksimal 2MB per foto. Foto pertama yang dipilih jadi foto utama di katalog.
-        @if($product) Foto baru akan menggantikan semua foto lama. @endif
+        JPG, PNG, atau WEBP, maksimal 2MB per foto.
+        @if($product)
+            Foto baru ditambahkan di belakang foto yang ada. Centang "Hapus" untuk membuang foto; foto pertama yang tersisa jadi foto utama.
+        @else
+            Foto pertama yang dipilih jadi foto utama di katalog.
+        @endif
     </p>
     <p id="images_error" class="text-xs font-semibold text-rose-600 mt-1 {{ $imagesError ? '' : 'hidden' }}" role="alert">{{ $imagesError }}</p>
 </div>
 
 <script>
-    // Cek jumlah, format, dan ukuran foto sebelum dikirim
+    // Cek jumlah total (foto lama yang tidak dihapus + foto baru), format, dan ukuran foto sebelum dikirim
     (function () {
         const input = document.getElementById('images');
         const error = document.getElementById('images_error');
+        const quota = document.getElementById('images_quota');
+        const existing = Array.from(document.querySelectorAll('[data-existing-photo]'));
         const allowed = ['jpg', 'jpeg', 'png', 'webp'];
         const maxFiles = Number(input.dataset.maxFiles);
         const maxBytes = Number(input.dataset.maxBytes);
 
+        // Redupkan foto yang dicentang dan pindahkan label "Utama" ke foto pertama yang tersisa
+        function keptCount() {
+            let kept = 0;
+            existing.forEach(function (item) {
+                const removed = item.querySelector('[data-remove-photo]').checked;
+                const thumb = item.querySelector('[data-photo-thumb]');
+                thumb.classList.toggle('opacity-40', removed);
+                thumb.classList.toggle('grayscale', removed);
+                item.querySelector('[data-main-badge]').classList.toggle('hidden', removed || kept > 0);
+                if (!removed) kept++;
+            });
+            return kept;
+        }
+
         function check() {
             const files = Array.from(input.files);
+            const kept = keptCount();
+            const total = kept + files.length;
+            quota.textContent = total + ' dari ' + maxFiles + ' foto';
+            quota.classList.toggle('text-rose-600', total > maxFiles);
+            quota.classList.toggle('text-slate-500', total <= maxFiles);
+
             let message = '';
-            if (files.length > maxFiles) {
-                message = 'Maksimal ' + maxFiles + ' foto per produk. Kamu memilih ' + files.length + ' foto.';
+            if (total > maxFiles) {
+                message = existing.length
+                    ? 'Total foto maksimal ' + maxFiles + ' per produk. Masih ada ' + kept + ' foto, jadi kamu hanya bisa menambah ' + Math.max(0, maxFiles - kept) + ' foto lagi (kamu memilih ' + files.length + ').'
+                    : 'Maksimal ' + maxFiles + ' foto per produk. Kamu memilih ' + files.length + ' foto.';
+            } else if (existing.length && total === 0) {
+                message = 'Produk harus punya minimal 1 foto. Unggah foto baru kalau ingin menghapus semua foto lama.';
             } else {
                 for (const file of files) {
                     const ext = file.name.split('.').pop().toLowerCase();
@@ -139,6 +189,9 @@
         }
 
         input.addEventListener('change', check);
+        existing.forEach(function (item) {
+            item.querySelector('[data-remove-photo]').addEventListener('change', check);
+        });
         input.form.addEventListener('submit', function (e) {
             if (!check()) {
                 e.preventDefault();
