@@ -41,7 +41,7 @@ class DoubleRequestSafetyTest extends TestCase
     private function book(Product $product, string $key, ?User $as = null)
     {
         return $this->actingAs($as ?? $this->buyer)->post(route('product.book', $product->id), [
-            'idempotency_key' => $key, 'lokasi_cod' => 'Nagoya Hill', 'waktu_cod' => now()->addDay()->toDateTimeString(), 'qris_paid' => 1,
+            'idempotency_key' => $key, 'lokasi_cod' => 'Nagoya Hill', 'meeting_latitude' => 1.1442, 'meeting_longitude' => 104.0109, 'waktu_cod' => now()->addDay()->toDateTimeString(), 'qris_paid' => 1,
         ]);
     }
 

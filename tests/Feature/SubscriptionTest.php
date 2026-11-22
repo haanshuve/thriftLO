@@ -180,7 +180,7 @@ class SubscriptionTest extends TestCase
         $buyer = User::factory()->create(['role' => 'pembeli']);
 
         $this->actingAs($buyer)->from('/')->post(route('product.book', $hidden->id), ['idempotency_key' => $this->formKey(), 
-            'lokasi_cod' => 'Mega Mall', 'waktu_cod' => now()->addDay()->format('Y-m-d\TH:i'),
+            'lokasi_cod' => 'Mega Mall', 'meeting_latitude' => 1.1442, 'meeting_longitude' => 104.0109, 'waktu_cod' => now()->addDay()->format('Y-m-d\TH:i'),
         ])->assertSessionHas('error');
 
         $this->assertSame(0, Booking::count());

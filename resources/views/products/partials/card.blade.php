@@ -86,6 +86,8 @@
                     </a>
                 @elseif($isAvailable && $canCod)
                     <button type="button" data-url="{{ route('product.book', $p->id) }}" data-name="{{ $name }}" data-price="{{ (int) $p->price }}" onclick="openBookingModal(this)"
+                            data-suggest-url="{{ route('product.codSuggestions', $p) }}"
+                            @if($p->user?->hasCodPoint()) data-seller-lat="{{ $p->user->cod_latitude }}" data-seller-lng="{{ $p->user->cod_longitude }}" data-seller-label="{{ $p->user->cod_address }}" @endif
                             class="flex-1 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 hover:shadow-md hover:shadow-emerald-600/30 text-white text-xs sm:text-sm font-semibold transition active:scale-95 motion-reduce:transform-none">
                         Booking COD
                     </button>

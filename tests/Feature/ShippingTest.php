@@ -165,7 +165,7 @@ class ShippingTest extends TestCase
         $product = $this->product($this->jakartaSeller, 'Sepatu Jakarta', $this->jneAndJnt());
 
         $this->actingAs($this->buyer)->post(route('product.book', $product->id), ['idempotency_key' => $this->formKey(), 
-            'lokasi_cod' => 'Mega Mall', 'waktu_cod' => now()->addDay()->format('Y-m-d\TH:i'),
+            'lokasi_cod' => 'Mega Mall', 'meeting_latitude' => 1.1442, 'meeting_longitude' => 104.0109, 'waktu_cod' => now()->addDay()->format('Y-m-d\TH:i'),
         ])->assertRedirect(route('product.show', $product))->assertSessionHas('error');
 
         $this->assertSame(0, Booking::count());

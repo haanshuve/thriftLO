@@ -19,6 +19,9 @@ use App\Http\Controllers\SubscriptionController;
 // Halaman Publik / Katalog Utama
 Route::get('/', [ProductController::class, 'index'])->name('home');
 Route::get('/product/{product}', [ProductController::class, 'show'])->name('product.show');
+// Saran tempat COD yang adil untuk popup booking (JSON); lokasi pembeli dikirim lewat ?lat=&lng=
+Route::get('/product/{product}/saran-cod', [ProductController::class, 'codSuggestions'])
+    ->middleware('throttle:60,1')->name('product.codSuggestions');
 Route::get('/merek', [BrandController::class, 'index'])->name('brands.index');
 Route::get('/merek/{brand}', [BrandController::class, 'show'])->name('brands.show');
 
@@ -82,6 +85,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
+    Route::patch('/profile/titik-cod', [ProfileController::class, 'updateCodPoint'])->name('profile.cod-point.update');
+    Route::delete('/profile/titik-cod', [ProfileController::class, 'destroyCodPoint'])->name('profile.cod-point.destroy');
 });
 
 // Panel Admin (layout terpisah dari marketplace). Semua rute di sini khusus role admin.

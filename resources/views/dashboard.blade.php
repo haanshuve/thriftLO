@@ -175,6 +175,12 @@
                                 <p class="text-xs text-slate-500 mt-0.5">
                                     📍 {{ $booking->cod_location }} · ⏰ {{ \Illuminate\Support\Carbon::parse($booking->cod_schedule)->format('d M Y, H:i') }}
                                 </p>
+                                @if($booking->hasMeetingPoint() && ($booking->isActive() || $booking->isAwaitingPayment()))
+                                    {{-- Titik ketemuan usulan pembeli; booking lama tanpa koordinat cukup menampilkan teks di atas --}}
+                                    <x-cod-point-map class="mt-2" compact
+                                                     :lat="$booking->meeting_latitude" :lng="$booking->meeting_longitude" :label="$booking->cod_location"
+                                                     :distance="$booking->meetingDistanceLabel()" />
+                                @endif
                                 @if($booking->status_cod === 'Cancelled')
                                     <p class="mt-1.5 rounded-md bg-slate-50 border border-slate-200 px-2 py-1.5 text-xs text-slate-600">
                                         {{ match ($booking->cancelled_by) { \App\Models\Booking::CANCELLED_BY_SELLER => 'Kamu membatalkan', \App\Models\Booking::CANCELLED_BY_SYSTEM => 'Sistem membatalkan otomatis', default => 'Pembeli membatalkan' } }} booking ini{{ $booking->cancelled_at ? ' pada ' . $booking->cancelled_at->format('d M Y, H:i') : '' }}{{ $booking->cancelReasonLabel() ? ' · Alasan: ' . $booking->cancelReasonLabel() : '' }}.

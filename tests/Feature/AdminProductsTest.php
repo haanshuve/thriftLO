@@ -81,7 +81,7 @@ class AdminProductsTest extends TestCase
         $this->actingAs($this->buyer)->get(route('product.show', $product))->assertNotFound();
 
         $this->actingAs($this->buyer)->post(route('product.book', $product->id), ['idempotency_key' => $this->formKey(), 
-            'lokasi_cod' => 'Tiban Center', 'waktu_cod' => now()->addDay()->toDateTimeString(), 'qris_paid' => 1,
+            'lokasi_cod' => 'Tiban Center', 'meeting_latitude' => 1.1442, 'meeting_longitude' => 104.0109, 'waktu_cod' => now()->addDay()->toDateTimeString(), 'qris_paid' => 1,
         ])->assertSessionHas('error');
         $this->assertSame(0, Booking::count());
 
