@@ -134,6 +134,14 @@
                         </div>
                     </div>
 
+                    @if($isActive && $seller?->hasCodPoint())
+                        <!-- Titik COD penjual -->
+                        <div class="mx-4 mb-4">
+                            <p class="text-xs font-semibold text-slate-700 mb-1.5">Titik COD penjual</p>
+                            <x-cod-point-map :seller="$seller" compact />
+                        </div>
+                    @endif
+
                     @if($b->status_cod === 'Cancelled')
                         <!-- Informasi pembatalan -->
                         @php $bySeller = $b->cancelled_by === \App\Models\Booking::CANCELLED_BY_SELLER; @endphp

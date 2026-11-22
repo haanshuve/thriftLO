@@ -29,6 +29,18 @@ class SellerLocation
         return [...config('thriftlo.batam_areas'), self::OUTSIDE_BATAM];
     }
 
+    // Titik koordinat ada di salah satu kotak wilayah Batam (config thriftlo.cod_point.areas)
+    public static function isInBatamArea(float $lat, float $lng): bool
+    {
+        foreach (config('thriftlo.cod_point.areas') as $area) {
+            if ($lat >= $area['lat'][0] && $lat <= $area['lat'][1] && $lng >= $area['lng'][0] && $lng <= $area['lng'][1]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function isBatam(?string $location): bool
     {
         return in_array($location, config('thriftlo.batam_areas'), true);

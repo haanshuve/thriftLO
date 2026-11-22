@@ -84,4 +84,24 @@ return [
         'max_mb' => 50,
     ],
 
+    /*
+    | Titik COD penjual (pin peta Leaflet + OpenStreetMap, tanpa API key).
+    | address_max: batas karakter patokan alamat, dipakai di maxlength form dan validasi server.
+    | center/zoom: posisi awal peta sebelum penjual memasang pin (sekitar Batam Centre).
+    | areas: wilayah yang boleh dipasangi pin (kotak lat/lng, batas ikut diterima). Titik COD
+    | harus masuk salah satu kotak. Dibuat dua kotak, bukan satu kotak 0.95-1.30 / 103.85-104.25,
+    | supaya selatan Singapura (lat > 1.215) dan Tanjung Uban, Bintan (lng > 104.20) tidak ikut,
+    | sementara Rempang-Galang (masih Kota Batam, tersambung jembatan Barelang) tetap tercakup.
+    | Batasnya perkiraan; cek ulang di peta kalau ada titik sah yang tertolak.
+    */
+    'cod_point' => [
+        'address_max' => 150,
+        'center'      => ['lat' => 1.1301, 'lng' => 104.0529],
+        'zoom'        => 12,
+        'areas'       => [
+            ['label' => 'Pulau Batam & Belakang Padang', 'lat' => [0.95, 1.215], 'lng' => [103.85, 104.20]],
+            ['label' => 'Rempang & Galang',              'lat' => [0.65, 0.95],  'lng' => [103.95, 104.30]],
+        ],
+    ],
+
 ];

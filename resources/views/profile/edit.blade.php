@@ -84,6 +84,12 @@
             @include('profile.partials.update-profile-information-form')
         </section>
 
+        @if($user->role === 'penjual')
+            <section id="titik-cod" class="rounded-xl border border-slate-200 p-4 sm:p-6 scroll-mt-20">
+                @include('profile.partials.update-cod-point-form')
+            </section>
+        @endif
+
         <section class="rounded-xl border border-slate-200 p-4 sm:p-6">
             @include('profile.partials.update-password-form')
         </section>

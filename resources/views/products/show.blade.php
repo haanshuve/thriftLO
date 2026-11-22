@@ -149,6 +149,12 @@
                         <div data-method="cod" class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
                             <h2 class="font-semibold text-slate-900">Booking COD</h2>
                             <p class="text-sm text-slate-600 mt-0.5">Ketemuan di Batam, cek barangnya, baru bayar di tempat.</p>
+                            @if($seller->hasCodPoint())
+                                <div class="mt-3">
+                                    <p class="text-xs font-semibold text-slate-700 mb-1.5">Titik COD yang disarankan penjual</p>
+                                    <x-cod-point-map :seller="$seller" />
+                                </div>
+                            @endif
                             @auth
                                 <button type="button" data-url="{{ route('product.book', $product->id) }}" data-name="{{ $product->title }}" data-price="{{ $price }}" onclick="openBookingModal(this)"
                                         class="mt-3 w-full h-11 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition active:scale-[0.98] motion-reduce:transform-none">

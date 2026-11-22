@@ -82,6 +82,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar'])->name('profile.avatar.destroy');
+    Route::patch('/profile/titik-cod', [ProfileController::class, 'updateCodPoint'])->name('profile.cod-point.update');
+    Route::delete('/profile/titik-cod', [ProfileController::class, 'destroyCodPoint'])->name('profile.cod-point.destroy');
 });
 
 // Panel Admin (layout terpisah dari marketplace). Semua rute di sini khusus role admin.

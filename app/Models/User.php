@@ -32,6 +32,9 @@ class User extends Authenticatable
     'nama_toko',
     'lokasi_lapak',
     'kota_lapak',
+    'cod_address',
+    'cod_latitude',
+    'cod_longitude',
     'ktp_number',
     'ktp_photo_path',
     'selfie_path',
@@ -58,6 +61,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'cod_latitude' => 'float',
+            'cod_longitude' => 'float',
             'subscription_expires_at' => 'datetime',
             'deactivated_at' => 'datetime',
         ];
@@ -118,6 +123,19 @@ class User extends Authenticatable
     public function isInBatam(): bool
     {
         return SellerLocation::isBatam($this->lokasi_lapak);
+    }
+
+    // Titik COD hanya berlaku untuk penjual di Batam yang sudah memasang pin
+    public function hasCodPoint(): bool
+    {
+        return $this->isInBatam() && $this->cod_latitude !== null && $this->cod_longitude !== null;
+    }
+
+    public function codPointMapsUrl(): ?string
+    {
+        return $this->hasCodPoint()
+            ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode($this->cod_latitude . ',' . $this->cod_longitude)
+            : null;
     }
 
     // Lokasi untuk ditampilkan ke pembeli, mis. "Nagoya, Batam"
