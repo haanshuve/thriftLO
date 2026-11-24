@@ -27,6 +27,7 @@ class AdminLayout extends Component
                 ['Kategori', 'admin.categories', 'admin.categories*', 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z'],
                 ['Merek', 'admin.brands', 'admin.brands*', 'M3 12V4h8l9 9-8 8-9-9Zm5-4.5h.01'],
                 ['Laporan', 'admin.reports', 'admin.reports', 'M4 20V10m6 10V4m6 16v-7m4 7H2'],
+                ['Analitik', 'admin.analytics', 'admin.analytics*', 'M3 3v18h18M7 15l4-4 3 3 6-7'],
             ],
             'pendingSellers' => User::where('role', 'penjual')->where('seller_status', 'pending')->count(),
         ]);

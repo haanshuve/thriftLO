@@ -123,6 +123,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/merek/{brand:id}', [Admin\BrandController::class, 'destroy'])->name('brands.destroy');
 
     Route::get('/laporan', [Admin\ReportController::class, 'index'])->name('reports');
+
+    // Dashboard Analitik (BI): grafik, insight otomatis, ekspor CSV ringkasan transaksi
+    Route::get('/analitik', [Admin\AnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/analitik/ekspor', [Admin\AnalyticsController::class, 'export'])->middleware('throttle:10,1')->name('analytics.export');
 });
 
 // Rute Autentikasi Bawaan Laravel Breeze
