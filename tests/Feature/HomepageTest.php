@@ -47,14 +47,18 @@ class HomepageTest extends TestCase
     public function test_home_shows_carousel_banners_perks_steps_seller_banner_and_footer(): void
     {
         $html = $this->get('/')->assertOk()
-            // Carousel 4 slide dari fitur nyata + navigasi yang aksesibel
+            // Carousel 5 slide dari fitur nyata (slide barang terbaru butuh >= 3 barang) + navigasi aksesibel
             ->assertSee('aria-roledescription="carousel"', false)
             ->assertSee('Lihat kondisi asli lewat Video Proof')
-            ->assertSee('COD aman pakai Smart QR')
-            ->assertSee('Belanja dari seluruh Indonesia')
-            ->assertSee('Punya barang nganggur? Jadi penjual')
+            ->assertSee('Belanja dari penjual terverifikasi')
+            ->assertSee('COD aman: booking, ketemuan, scan QR')
+            ->assertSee('Belum nemu? Pakai One to Buy')
+            ->assertSee('Jual barang preloved kamu')
+            ->assertSee('Ingin beriklan di ThriftLO?')
+            ->assertSee('mailto:' . config('thriftlo.contact_email'), false)
             ->assertSee('aria-label="Slide berikutnya"', false)
-            ->assertSee('aria-label="Tampilkan slide 4"', false)
+            ->assertSee('aria-label="Tampilkan slide 5"', false)
+            ->assertDontSee('aria-label="Tampilkan slide 6"', false)
             ->assertSee('prefers-reduced-motion', false)
             // Banner samping
             ->assertSee('Request barang')
@@ -70,10 +74,49 @@ class HomepageTest extends TestCase
             ->assertSee('tidak dapat dikembalikan dan menjadi milik platform, baik kamu maupun penjual yang membatalkan')
             ->getContent();
 
-        $this->assertSame(4, substr_count($html, 'aria-roledescription="slide"'));
+        $this->assertSame(5, substr_count($html, 'aria-roledescription="slide"'));
+        $this->assertStringNotContainsString('data-slide="products"', $html);
         // Tanpa gambar eksternal di hero
         $hero = substr($html, strpos($html, 'Sorotan thriftLO'), strpos($html, 'judulKeunggulan') - strpos($html, 'Sorotan thriftLO'));
         $this->assertStringNotContainsString('<img', $hero);
+    }
+
+    public function test_latest_products_slide_only_shows_with_at_least_three_available_products(): void
+    {
+        $this->product($this->batamSeller, 'Jaket Satu');
+        $this->product($this->batamSeller, 'Tas Dua', ['price' => 175000]);
+        $this->product($this->batamSeller, 'Sepatu Booked', ['status' => 'Booked']);
+
+        // Baru 2 barang tersedia: slide disembunyikan, carousel tetap 5 slide
+        $html = $this->get('/')->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-slide="products"', $html);
+        $this->assertSame(5, substr_count($html, 'aria-roledescription="slide"'));
+
+        $this->product($this->batamSeller, 'Kemeja Tiga');
+
+        $html = $this->get('/')->assertOk()->getContent();
+        $this->assertSame(6, substr_count($html, 'aria-roledescription="slide"'));
+        $slide = substr($html, strpos($html, 'data-slide="products"'));
+        $slide = substr($slide, 0, strpos($slide, 'data-slide="', 1)); // sampai slide berikutnya
+
+        $this->assertStringContainsString('Barang terbaru', $slide);
+        $this->assertStringContainsString('Kemeja Tiga', $slide);
+        $this->assertStringContainsString('Rp175.000', $slide);
+        $this->assertStringContainsString(asset('storage/products/x.jpg'), $slide);
+        $this->assertStringNotContainsString('Sepatu Booked', $slide, 'Barang yang sudah di-booking tidak ikut');
+    }
+
+    public function test_latest_products_slide_shows_at_most_four_products(): void
+    {
+        foreach (range(1, 6) as $n) {
+            $this->product($this->batamSeller, "Barang {$n}");
+        }
+
+        $html = $this->get('/')->assertOk()->getContent();
+        $hero = substr($html, strpos($html, 'Sorotan thriftLO'), strpos($html, 'judulKeunggulan') - strpos($html, 'Sorotan thriftLO'));
+        preg_match_all('/data-hero-product="(\d+)"/', $hero, $m);
+
+        $this->assertCount(4, array_unique($m[1]));
     }
 
     public function test_seller_banner_uses_numbers_from_config(): void

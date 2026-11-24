@@ -149,4 +149,9 @@ return [
         ['name' => 'Pasar Tanjung Piayu',        'lat' => 1.0460, 'lng' => 104.0700], // VERIFIKASI
     ],
 
+    /*
+    | Email tim thriftLO untuk pertanyaan kerja sama/beriklan (tautan kecil di slide hero).
+    */
+    'contact_email' => env('THRIFTLO_CONTACT_EMAIL', env('MAIL_FROM_ADDRESS', 'hello@thriftlo.test')),
+
 ];

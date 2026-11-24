@@ -133,7 +133,11 @@ class ProductController extends Controller
             'transaksi selesai'     => Booking::where('status_cod', 'Completed')->count() + Order::where('status', Order::COMPLETED)->count(),
         ]);
 
+        // Slide "Barang terbaru" di hero: 4 barang tersedia terbaru (slide disembunyikan bila < 3)
+        $latestProducts = $products->where('status', 'Available')->take(4)->values();
+
         return [
+            'latestProducts' => $latestProducts,
             'categoryCounts' => $categoryCounts,
             'sections'       => $sections,
             'stats'          => $stats,

@@ -367,7 +367,8 @@ class ShippingTest extends TestCase
     // Potongan HTML satu kartu produk di katalog, dari judul sampai kartu berikutnya
     private function cardHtml(string $html, string $title): string
     {
-        $start = strrpos(substr($html, 0, strpos($html, $title)), '<article');
+        // Mulai dari kartu katalog pertama: nama barang juga muncul di slide "Barang terbaru" hero
+        $start = strrpos(substr($html, 0, strpos($html, $title, strpos($html, '<article'))), '<article');
         $end = strpos($html, '</article>', $start);
 
         return substr($html, $start, $end - $start);
