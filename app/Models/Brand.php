@@ -26,6 +26,10 @@ class Brand extends Model
                 $brand->slug = static::uniqueSlug($brand->name, $brand->id);
             }
         });
+
+        // Nama/slug/status merek tampil di mega menu header yang di-cache
+        static::saved(fn () => \App\Support\CategoryMenu::forget());
+        static::deleted(fn () => \App\Support\CategoryMenu::forget());
     }
 
     public static function uniqueSlug(string $name, ?int $ignoreId = null): string

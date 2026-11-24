@@ -154,4 +154,31 @@ return [
     */
     'contact_email' => env('THRIFTLO_CONTACT_EMAIL', env('MAIL_FROM_ADDRESS', 'hello@thriftlo.test')),
 
+    /*
+    | Mega menu kategori di header (App\Support\CategoryMenu). Kategori produk tetap satu tingkat di
+    | tabel `categories` (dikelola admin); di sini hanya pengelompokan untuk navigasi.
+    | - Isi `categories` = slug yang tersimpan di products.kategori. Slug yang tidak ada di tabel
+    |   diabaikan, dan kategori baru dari admin yang belum dipetakan otomatis masuk grup terakhir.
+    | - Subkategori di panel = filter katalog yang benar-benar ada: merek yang punya barang di
+    |   kategori itu (?kategori=..&merek=..) dan cara beli (?kategori=..&koleksi=cod|kirim|video).
+    */
+    'category_groups' => [
+        'fashion'    => ['label' => 'Fashion',          'categories' => ['Fashion', 'Sepatu', 'Tas', 'Aksesoris']],
+        'elektronik' => ['label' => 'Elektronik & Hobi', 'categories' => ['Vintage Tech']],
+        'lainnya'    => ['label' => 'Lainnya',          'categories' => ['Lainnya']],
+    ],
+
+    // Ikon SVG per slug kategori (nama ikon di components/category-icon). Tanpa entri = ikon kotak.
+    'category_icons' => [
+        'Fashion'      => 'shirt',
+        'Sepatu'       => 'shoe',
+        'Tas'          => 'bag',
+        'Aksesoris'    => 'watch',
+        'Vintage Tech' => 'camera',
+        'Lainnya'      => 'box',
+    ],
+
+    // Lama cache jumlah barang di mega menu (detik)
+    'category_menu_ttl' => 300,
+
 ];

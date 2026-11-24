@@ -8,6 +8,13 @@ class Category extends Model
 {
     protected $fillable = ['slug', 'label', 'icon', 'sort_order'];
 
+    // Mega menu header menyimpan daftar kategori di cache: segarkan saat admin mengubahnya
+    protected static function booted(): void
+    {
+        static::saved(fn () => \App\Support\CategoryMenu::forget());
+        static::deleted(fn () => \App\Support\CategoryMenu::forget());
+    }
+
     public function scopeOrdered($query)
     {
         return $query->orderBy('sort_order')->orderBy('id');

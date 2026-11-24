@@ -26,8 +26,18 @@
     @endphp
 
     <!-- Header / Navbar -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shrink-0">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shrink-0"
+            x-data="{ drawer: false }" @keydown.escape.window="drawer = false">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-6">
+
+            @if($categoryMenu)
+                <!-- Menu kategori (ponsel/tablet) -->
+                <button type="button" @click="drawer = true; $nextTick(() => $refs.drawerClose.focus())"
+                        class="lg:hidden -ml-1.5 p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-emerald-700"
+                        aria-label="Menu kategori" aria-haspopup="true" aria-expanded="false" :aria-expanded="drawer.toString()" aria-controls="category-drawer">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+            @endif
 
             <!-- Logo -->
             <a href="{{ route('home') }}" class="flex items-center gap-2 shrink-0">
@@ -81,6 +91,32 @@
                 @endauth
             </nav>
         </div>
+
+        @if($categoryMenu)
+            <!-- Mega menu kategori (desktop) -->
+            <x-category-menu :groups="$categoryMenu" :active-kategori="$activeKategori" />
+
+            <!-- Laci kategori (ponsel/tablet) -->
+            <div x-show="drawer" style="display: none" class="lg:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-labelledby="category-drawer-title">
+                <div x-show="drawer" x-transition.opacity @click="drawer = false" class="absolute inset-0 bg-slate-900/50" aria-hidden="true"></div>
+                <aside id="category-drawer" x-show="drawer"
+                       x-transition:enter="transition ease-out duration-200" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+                       x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
+                       class="absolute inset-y-0 left-0 w-80 max-w-[85vw] bg-white shadow-xl flex flex-col">
+                    <div class="h-14 px-4 flex items-center justify-between border-b border-slate-100 shrink-0">
+                        <p id="category-drawer-title" class="font-bold text-slate-900">Kategori</p>
+                        <button type="button" x-ref="drawerClose" @click="drawer = false" class="p-2 -mr-2 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Tutup menu kategori">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto overscroll-contain">
+                        <a href="{{ route('home', ['koleksi' => 'baru']) }}" class="block px-4 py-3 font-semibold text-emerald-700 border-b border-slate-100 hover:bg-emerald-50">Semua barang</a>
+                        <x-category-menu :groups="$categoryMenu" :active-kategori="$activeKategori" :mobile="true" />
+                        <a href="{{ route('brands.index') }}" class="block px-4 py-3 font-semibold text-slate-700 border-t border-slate-100 hover:bg-slate-50">Semua merek</a>
+                    </div>
+                </aside>
+            </div>
+        @endif
 
         @if($showCategories)
             <!-- Kategori (chip horizontal) -->

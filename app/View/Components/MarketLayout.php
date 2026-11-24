@@ -28,6 +28,8 @@ class MarketLayout extends Component
 
         return view('layouts.market', [
             'categories'     => Category::options(),
+            // Mega menu kategori (tidak dipakai di halaman setinggi layar seperti ruang chat)
+            'categoryMenu'   => $this->fullHeight ? [] : \App\Support\CategoryMenu::groups(),
             'activeKategori' => request('kategori', 'all'),
             'unreadCount'    => $user ? Message::where('receiver_id', $user->id)->where('is_read', false)->count() : 0,
             // Menu utama per peran: penjual -> Toko Saya, admin -> Panel Admin, pembeli -> Tiket Saya
