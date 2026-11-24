@@ -167,6 +167,15 @@
                             @if($seller->seller_status === 'verified')<span class="text-emerald-600" title="Penjual terverifikasi">✓</span>@endif
                         </p>
                         <p class="text-xs text-slate-500 truncate">{{ $canCod ? '📍' : '🚚' }} {{ $seller->locationLabel() }} ·{{ $canCod ? 'Bisa COD di Batam' : 'Hanya pengiriman' }}</p>
+                        @if($sellerRating['count'] > 0)
+                            <a href="#ulasan" class="mt-0.5 inline-flex items-center gap-1 text-xs text-slate-600 hover:text-emerald-700 hover:underline">
+                                <span class="text-amber-400" aria-hidden="true">★</span>
+                                <span class="font-semibold text-slate-800">{{ number_format($sellerRating['average'], 1, ',', '') }}</span>
+                                <span>· {{ $sellerRating['count'] }} ulasan</span>
+                            </a>
+                        @else
+                            <p class="mt-0.5 text-xs text-slate-400">Belum ada ulasan</p>
+                        @endif
                     </div>
                     @unless($isOwner)
                         <a href="{{ route('chat.index', ['user_id' => $seller->id, 'product_id' => $product->id]) }}" class="shrink-0 h-9 px-3 inline-flex items-center rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold">Tanya</a>
@@ -364,6 +373,38 @@
                     {{-- Produk lama: video proof masih berupa link eksternal --}}
                     <a href="{{ $product->video_proof }}" target="_blank" rel="noopener" class="inline-block text-sm font-semibold text-sky-700 hover:underline">🎥 Lihat video kondisi barang</a>
                 @endif
+
+                <!-- Ulasan pembeli untuk penjual -->
+                <section id="ulasan" aria-labelledby="ulasanTitle" class="scroll-mt-20">
+                    <h2 id="ulasanTitle" class="font-semibold text-slate-900">Ulasan untuk {{ $seller->nama_toko ?: $seller->name }}</h2>
+                    @if($sellerRating['count'] > 0)
+                        <div class="mt-2 flex items-center gap-3">
+                            <p class="text-3xl font-black text-slate-900 tabular-nums">{{ number_format($sellerRating['average'], 1, ',', '') }}</p>
+                            <div>
+                                @include('reviews.partials.stars', ['rating' => $sellerRating['average'], 'size' => 'text-lg'])
+                                <p class="text-xs text-slate-500">dari {{ $sellerRating['count'] }} ulasan pembeli</p>
+                            </div>
+                        </div>
+                        <ul class="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                            @foreach($sellerReviews as $review)
+                                <li class="px-3 py-2.5" data-review="{{ $review->id }}">
+                                    <div class="flex items-center justify-between gap-2">
+                                        @include('reviews.partials.stars', ['rating' => $review->rating, 'size' => 'text-sm'])
+                                        <time datetime="{{ $review->created_at->toDateString() }}" class="text-xs text-slate-400">{{ $review->created_at->translatedFormat('d M Y') }}</time>
+                                    </div>
+                                    @if($review->comment)
+                                        <p class="mt-1 text-sm text-slate-700 break-words">{{ $review->comment }}</p>
+                                    @endif
+                                    <p class="mt-1 text-xs text-slate-500 truncate">
+                                        {{ $review->buyerDisplayName() }} · {{ $review->product?->title ?? 'Barang sudah dihapus' }}
+                                    </p>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="mt-1 text-sm text-slate-500">Belum ada ulasan. Ulasan hanya bisa diberikan pembeli setelah transaksinya selesai.</p>
+                    @endif
+                </section>
             </div>
         </div>
     </main>

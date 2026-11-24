@@ -100,6 +100,25 @@ class User extends Authenticatable
         return $this->hasMany(Product::class);
     }
 
+    // Ulasan (bintang + komentar) dari pembeli untuk penjual ini
+    public function reviewsReceived()
+    {
+        return $this->hasMany(Review::class, 'seller_id');
+    }
+
+    /**
+     * Rata-rata bintang dan jumlah ulasan penjual dalam satu query.
+     *
+     * @return array{average: float|null, count: int}
+     */
+    public function ratingSummary(): array
+    {
+        $row = $this->reviewsReceived()->selectRaw('AVG(rating) as average, COUNT(*) as total')->first();
+        $count = (int) ($row->total ?? 0);
+
+        return ['average' => $count > 0 ? round((float) $row->average, 1) : null, 'count' => $count];
+    }
+
     // Lokasi lapak dari dropdown registrasi/profil; semua pilihan selain "Luar Batam" boleh COD
     protected static function booted(): void
     {

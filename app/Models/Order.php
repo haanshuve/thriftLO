@@ -49,6 +49,11 @@ class Order extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function review()
+    {
+        return $this->hasOne(Review::class);
+    }
+
     // Pembeli
     public function user()
     {

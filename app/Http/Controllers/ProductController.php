@@ -343,10 +343,15 @@ class ProductController extends Controller
         $canSeeHidden = $isOwner || Auth::user()?->role === 'admin';
         abort_if(($isHidden || $product->isTakenDown()) && !$canSeeHidden, 404);
 
+        // Ulasan pembeli untuk penjual ini (dari semua transaksinya yang selesai, bukan hanya barang ini)
+        $seller = $product->user;
+
         return view('products.show', [
-            'product'    => $product,
-            'isOwner'    => $isOwner,
-            'categories' => Category::options(),
+            'product'       => $product,
+            'isOwner'       => $isOwner,
+            'categories'    => Category::options(),
+            'sellerRating'  => $seller->ratingSummary(),
+            'sellerReviews' => $seller->reviewsReceived()->with(['buyer:id,name', 'product:id,title'])->latest()->latest('id')->take(5)->get(),
         ]);
     }
 

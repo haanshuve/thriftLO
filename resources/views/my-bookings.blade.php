@@ -82,6 +82,13 @@
                                 Chat Penjual
                             </a>
                         </div>
+                        @if($order->isReleased())
+                            @include('reviews.partials.form', [
+                                'review' => $order->review, 'action' => route('review.storeOrder', $order),
+                                'field' => 'order_id', 'id' => $order->id,
+                                'hint' => 'Bagaimana kondisi barang dan pengirimannya? (opsional)',
+                            ])
+                        @endif
                     </article>
                 @endforeach
             </section>
@@ -107,7 +114,6 @@
                     $p = $b->product;
                     $seller = $p->user;
                     $isActive = in_array($b->status_cod, $activeStatuses, true);
-                    $reviewErrors = old('booking_id') == $b->id ? $errors->review : null;
                 @endphp
 
                 <article class="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -219,43 +225,11 @@
 
                     @elseif($b->status_cod === 'Completed')
                         <!-- Ulasan -->
-                        <div class="border-t border-slate-100 px-4 py-3">
-                            @if($b->review)
-                                <div class="flex items-center gap-2">
-                                    <span class="text-amber-400 text-lg leading-none" aria-label="{{ $b->review->rating }} dari 5 bintang">
-                                        {{ str_repeat('★', $b->review->rating) }}<span class="text-slate-300">{{ str_repeat('★', 5 - $b->review->rating) }}</span>
-                                    </span>
-                                    <span class="text-xs text-slate-400">Ulasanmu</span>
-                                </div>
-                                @if($b->review->comment)
-                                    <p class="mt-1 text-sm text-slate-600">“{{ $b->review->comment }}”</p>
-                                @endif
-                            @else
-                                <form action="{{ route('review.store', $b->id) }}" method="POST" class="space-y-2">
-                                    @csrf
-                                    <input type="hidden" name="booking_id" value="{{ $b->id }}">
-                                    <fieldset>
-                                        <legend class="text-sm font-semibold text-slate-800">Beri ulasan untuk penjual</legend>
-                                        <div class="mt-1 flex flex-row-reverse justify-end gap-1">
-                                            @for($i = 5; $i >= 1; $i--)
-                                                <input type="radio" id="rating-{{ $b->id }}-{{ $i }}" name="rating" value="{{ $i }}" class="sr-only [&:checked~label]:text-amber-400 [&:focus-visible+label]:ring-2 [&:focus-visible+label]:ring-emerald-500"
-                                                       @checked($reviewErrors !== null && (int) old('rating') === $i) @if($i === 5) required @endif>
-                                                <label for="rating-{{ $b->id }}-{{ $i }}" class="text-3xl leading-none text-slate-300 cursor-pointer rounded hover:text-amber-400 [&:hover~label]:text-amber-400">
-                                                    ★<span class="sr-only">{{ $i }} bintang</span>
-                                                </label>
-                                            @endfor
-                                        </div>
-                                    </fieldset>
-                                    <label for="comment-{{ $b->id }}" class="sr-only">Komentar ulasan</label>
-                                    <textarea id="comment-{{ $b->id }}" name="comment" rows="2" maxlength="500" placeholder="Bagaimana kondisi barang dan pengalaman COD-nya? (opsional)"
-                                              class="w-full border-slate-300 rounded-lg text-sm focus:border-emerald-500 focus:ring-emerald-500">{{ $reviewErrors !== null ? old('comment') : '' }}</textarea>
-                                    @if($reviewErrors?->any())
-                                        <p class="text-sm text-rose-600" role="alert">{{ $reviewErrors->first() }}</p>
-                                    @endif
-                                    <button type="submit" class="w-full sm:w-auto px-5 h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Kirim ulasan</button>
-                                </form>
-                            @endif
-                        </div>
+                        @include('reviews.partials.form', [
+                            'review' => $b->review, 'action' => route('review.store', $b->id),
+                            'field' => 'booking_id', 'id' => $b->id,
+                            'hint' => 'Bagaimana kondisi barang dan pengalaman COD-nya? (opsional)',
+                        ])
                     @endif
                 </article>
             @empty

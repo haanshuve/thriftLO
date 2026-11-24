@@ -64,11 +64,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         \App\Models\Order::releaseOverdue();
         \App\Models\Booking::releaseExpiredPayments();
         $bookings =\App\Models\Booking::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
-        $orders = \App\Models\Order::with('product.user')->where('user_id', Auth::id())->latest()->get();
+        $orders = \App\Models\Order::with(['product.user', 'review'])->where('user_id', Auth::id())->latest()->get();
         return view('my-bookings', compact('bookings', 'orders'));
     })->name('bookings.index');
 
     Route::post('/booking/{id}/review', [ReviewController::class, 'store'])->name('review.store');
+    Route::post('/order/{order}/review', [ReviewController::class, 'storeForOrder'])->name('review.storeOrder');
 
     // Chat: tanya kondisi barang & koordinasi COD (harga fixed, tanpa nego)
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
